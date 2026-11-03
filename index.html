@@ -264,6 +264,25 @@ h3 { font-family: var(--font-display); font-size: 1rem; margin: 4px 0 0; }
 .badge { font-size: .72rem; text-transform: uppercase; letter-spacing: .06em; background: var(--accent); color: var(--accent-fg); border-radius: 999px; padding: 3px 8px; }
 details.how summary { cursor: pointer; color: var(--accent); font-weight: 700; font-size: .9rem; }
 details.how p { font-size: .85rem; color: var(--muted); margin: 8px 0 0; max-width: 65ch; }
+/* Meal made of ingredients */
+.mealsum { background: var(--bg); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; display: flex; flex-direction: column; gap: 4px; }
+.mealsum .label { font-size: .72rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 700; }
+.mealsum .total { font-family: var(--font-display); font-size: 1.6rem; font-weight: 700; color: var(--kcal); line-height: 1.1; }
+.ing-head { display: flex; flex-direction: column; gap: 2px; }
+.ing-head h3 { margin: 0; }
+.ings { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.ing { border: 1px solid var(--line); border-radius: 12px; padding: 10px; display: flex; flex-direction: column; gap: 8px; background: var(--bg); }
+.ing-top { display: flex; align-items: center; gap: 8px; }
+.ing-top .field { flex: 1; }
+.ing .field input { background: var(--surface); padding: 9px 10px; }
+.ing .field label { font-size: .72rem; }
+.ing .hint { min-height: 0; }
+.ing .hint:empty { display: none; }
+.entry { flex-wrap: wrap; }
+.ing-toggle { border: 0; background: none; color: var(--accent); font-size: .82rem; font-weight: 700; padding: 6px 0 0; text-align: left; }
+.ing-list { flex-basis: 100%; list-style: none; margin: 0 0 4px 4px; padding: 2px 0 2px 12px; border-left: 2px solid var(--line); display: flex; flex-direction: column; gap: 8px; }
+.ing-list .iname { font-weight: 700; font-size: .9rem; display: flex; justify-content: space-between; gap: 8px; }
+.ing-list .iname span { font-family: var(--font-display); white-space: nowrap; }
 .toast {
   position: fixed; left: 50%; transform: translateX(-50%);
   bottom: calc(20px + env(safe-area-inset-bottom, 0px));
@@ -321,20 +340,18 @@ details.how p { font-size: .85rem; color: var(--muted); margin: 8px 0 0; max-wid
 
   <form class="card" id="addForm" autocomplete="off">
     <h2 id="formTitle">Dodaj posiłek</h2>
-    <div class="namerow">
-      <div class="field">
-        <label for="fName">Co zjadłeś?</label>
-        <input id="fName" placeholder="np. Owsianka z bananem" maxlength="80" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="suggest">
-        <ul class="suggest" id="suggest" hidden></ul>
-      </div>
-      <div class="field">
-        <label for="fKcal">kcal</label>
-        <input id="fKcal" type="number" inputmode="decimal" min="0" step="any" placeholder="auto">
-      </div>
+    <div class="field">
+      <label for="fName">Nazwa posiłku</label>
+      <input id="fName" placeholder="np. Kanapka z szynką i serem" maxlength="80" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="suggest">
+      <ul class="suggest full" id="suggest" hidden></ul>
     </div>
-    <div class="grid3" id="formRow1"></div>
-    <div class="grid3" id="formRow2"></div>
-    <div class="hint num" id="calcHint"></div>
+    <div class="mealsum" id="mealSum" aria-live="polite"></div>
+    <div class="ing-head">
+      <h3>Składniki</h3>
+      <span class="sub">Kalorie policzę z makro, jeśli ich nie wpiszesz.</span>
+    </div>
+    <ol class="ings" id="ings"></ol>
+    <button type="button" class="ghost" id="addIng">+ Dodaj składnik</button>
     <div class="row">
       <button type="submit" class="primary" id="submitBtn">Dodaj</button>
       <button type="button" class="ghost" id="cancelEdit" hidden>Anuluj</button>
@@ -490,16 +507,30 @@ details.how p { font-size: .85rem; color: var(--muted); margin: 8px 0 0; max-wid
   function fold(s) { return String(s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/ł/g, "l").trim(); }
   function val(e, k) { return typeof e[k] === "number" ? e[k] : 0; }
 
+  function demoMeal(name, rows) {
+    var items = rows.map(function (r) { return { name: r[0], kcal: r[1], p: r[2], f: r[3], c: r[4], s: r[5], fib: r[6], salt: r[7] }; });
+    return Object.assign({ id: uid(), name: name, items: items, demo: true }, sumItems(items));
+  }
   function demoData() {
     var t = todayStr(), y = shiftDay(t, -1);
     var days = {};
     days[t] = [
-      { id: uid(), name: "Owsianka z bananem i masłem orzechowym", kcal: 520, p: 18, f: 17, c: 72, s: 22, fib: 9, salt: 0.3, demo: true },
+      demoMeal("Owsianka z bananem i masłem orzechowym", [
+        ["Płatki owsiane (60 g)", 225, 8, 4, 36, 0.6, 6, 0],
+        ["Banan", 105, 1.3, 0.4, 27, 14, 3, 0],
+        ["Masło orzechowe (15 g)", 95, 4, 8, 2.4, 1, 1, 0.1],
+        ["Mleko 2% (100 ml)", 50, 3.4, 2, 4.8, 4.8, 0, 0.1]
+      ]),
       { id: uid(), name: "Kurczak z ryżem i brokułami", kcal: 640, p: 48, f: 14, c: 78, s: 3, fib: 6, salt: 1.6, demo: true },
       { id: uid(), name: "Skyr naturalny", kcal: 95, p: 16, f: 0.3, c: 6, s: 6, fib: 0, salt: 0.1, demo: true }
     ];
     days[y] = [
-      { id: uid(), name: "Jajecznica z 3 jaj i chleb", kcal: 430, p: 24, f: 22, c: 32, s: 3, fib: 4, salt: 1.4, demo: true }
+      demoMeal("Kanapka z szynką i serem", [
+        ["Chleb (2 kromki)", 160, 6, 2, 30, 2, 4, 0.8],
+        ["Szynka (40 g)", 45, 8, 1.2, 0.6, 0.4, 0, 0.9],
+        ["Ser żółty (2 plastry)", 110, 7.5, 9, 0, 0, 0, 0.5],
+        ["Masło (5 g)", 37, 0, 4, 0, 0, 0, 0]
+      ])
     ];
     return { goals: defaultGoals(), days: days, workouts: demoWorkouts() };
   }
@@ -547,8 +578,7 @@ details.how p { font-size: .85rem; color: var(--muted); margin: 8px 0 0; max-wid
   var editingId = null;
 
   var $ = function (id) { return document.getElementById(id); };
-  var fName = $("fName"), fKcal = $("fKcal");
-  var inputs = {};
+  var fName = $("fName");
 
   function dot(n) {
     var d = document.createElement("span");
@@ -566,14 +596,6 @@ details.how p { font-size: .85rem; color: var(--muted); margin: 8px 0 0; max-wid
     var fill = document.createElement("i"); fill.id = "bar-" + n.key; fill.style.background = "var(" + n.color + ")";
     bar.append(fill); box.append(lab, v, bar);
     $("row" + n.row).append(box);
-
-    var fld = document.createElement("div"); fld.className = "field";
-    var fl = document.createElement("label"); fl.htmlFor = "f-" + n.key; fl.append(dot(n), n.label + " g");
-    var inp = document.createElement("input");
-    inp.id = "f-" + n.key; inp.type = "number"; inp.inputMode = "decimal"; inp.min = "0"; inp.step = "any"; inp.placeholder = "0";
-    inp.addEventListener("input", updateHint);
-    fld.append(fl, inp); $("formRow" + n.row).append(fld);
-    inputs[n.key] = inp;
 
     var gf = document.createElement("div"); gf.className = "field";
     var gl = document.createElement("label"); gl.htmlFor = "g-" + n.key; gl.textContent = n.label + " g";
@@ -676,11 +698,31 @@ details.how p { font-size: .85rem; color: var(--muted); margin: 8px 0 0; max-wid
         save(); render(); toast("Usunięto");
       });
       li.append(main, k, del);
+      if (e.items && e.items.length > 1) {
+        var open = !!openMeals[e.id];
+        var tg = document.createElement("button"); tg.type = "button"; tg.className = "ing-toggle";
+        tg.setAttribute("aria-expanded", String(open));
+        tg.textContent = (open ? "▴ Ukryj składniki" : "▾ " + e.items.length + " " + plural(e.items.length, "składnik", "składniki", "składników"));
+        tg.addEventListener("click", function (ev) { ev.stopPropagation(); openMeals[e.id] = !open; render(); });
+        main.append(tg);
+        if (open) {
+          var il = document.createElement("ul"); il.className = "ing-list";
+          e.items.forEach(function (it) {
+            var ili = document.createElement("li");
+            var nm2 = document.createElement("div"); nm2.className = "iname";
+            var t1 = document.createElement("strong"); t1.textContent = it.name;
+            var t2 = document.createElement("span"); t2.className = "num"; t2.textContent = Math.round(val(it, "kcal")) + " kcal";
+            nm2.append(t1, t2);
+            ili.append(nm2, metaLine(it, false));
+            il.append(ili);
+          });
+          li.append(il);
+        }
+      }
       ul.append(li);
     });
 
     $("demoBar").hidden = !hasDemo();
-    updateHint();
   }
 
   // One line of "B 18 g · T 17 g ..." with colored dots; zeros of the second row are skipped
@@ -697,6 +739,23 @@ details.how p { font-size: .85rem; color: var(--muted); margin: 8px 0 0; max-wid
     return meta;
   }
 
+  // ---------- Meal form: meal name on top, its ingredients below, the meal is the sum of all of them ----------
+  var formItems = [];
+  var openMeals = {};
+  function blankItem() { return { id: uid(), name: "", kcal: "", p: "", f: "", c: "", s: "", fib: "", salt: "" }; }
+  function itemKcal(it) { return num(it.kcal) || kcalFromMacros(num(it.p), num(it.f), num(it.c)); }
+  function sumItems(items) {
+    var t = { kcal: 0 };
+    NUTRIENTS.forEach(function (n) { t[n.key] = 0; });
+    items.forEach(function (it) {
+      t.kcal += itemKcal(it);
+      NUTRIENTS.forEach(function (n) { t[n.key] += num(it[n.key]); });
+    });
+    t.kcal = Math.round(t.kcal);
+    NUTRIENTS.forEach(function (n) { t[n.key] = r1(t[n.key]); });
+    return t;
+  }
+
   // Meals eaten before: newest version of each name wins
   function pastMeals() {
     var seen = {}, out = [];
@@ -708,63 +767,153 @@ details.how p { font-size: .85rem; color: var(--muted); margin: 8px 0 0; max-wid
     });
     return out;
   }
-
-  var sug = $("suggest");
-  function showSuggestions() {
-    if (editingId) { hideSuggestions(); return; }
-    var q = fold(fName.value);
-    var all = pastMeals(), hits;
-    if (!q) hits = all.slice(0, 6);
-    else {
-      hits = all.filter(function (e) { return fold(e.name).indexOf(q) !== -1; })
-        .sort(function (a, b) { return (fold(a.name).indexOf(q) === 0 ? 0 : 1) - (fold(b.name).indexOf(q) === 0 ? 0 : 1); })
-        .slice(0, 6);
-    }
-    sug.innerHTML = "";
-    if (!hits.length) { hideSuggestions(); return; }
-    var head = document.createElement("li"); head.className = "head";
-    head.textContent = q ? "Jadłeś już wcześniej" : "Ostatnio jedzone";
-    sug.append(head);
-    hits.forEach(function (e) {
-      var li = document.createElement("li");
-      var b = document.createElement("button"); b.type = "button";
-      var nm = document.createElement("div"); nm.className = "sname"; nm.textContent = e.name;
-      b.append(nm, metaLine(e, true));
-      b.addEventListener("pointerdown", function (ev) { ev.preventDefault(); });
-      b.addEventListener("click", function () { fillFrom(e); hideSuggestions(); fKcal.focus(); });
-      li.append(b); sug.append(li);
+  // Ingredients used before; a meal logged without ingredients counts as one ingredient too (e.g. "Skyr")
+  function pastIngredients() {
+    var seen = {}, out = [];
+    Object.keys(state.days).sort().reverse().forEach(function (k) {
+      state.days[k].slice().reverse().forEach(function (e) {
+        (e.items && e.items.length ? e.items : [e]).forEach(function (it) {
+          var key = fold(it.name);
+          if (key && !seen[key]) { seen[key] = 1; out.push(it); }
+        });
+      });
     });
-    sug.hidden = false; fName.setAttribute("aria-expanded", "true");
+    return out;
   }
-  function hideSuggestions() { sug.hidden = true; fName.setAttribute("aria-expanded", "false"); }
-  fName.addEventListener("input", showSuggestions);
-  fName.addEventListener("focus", showSuggestions);
-  fName.addEventListener("blur", function () { setTimeout(hideSuggestions, 150); });
-  fName.addEventListener("keydown", function (ev) { if (ev.key === "Escape") hideSuggestions(); });
+  function matchHits(all, q) {
+    if (!q) return all.slice(0, 6);
+    return all.filter(function (e) { return fold(e.name).indexOf(q) !== -1; })
+      .sort(function (a, b) { return (fold(a.name).indexOf(q) === 0 ? 0 : 1) - (fold(b.name).indexOf(q) === 0 ? 0 : 1); })
+      .slice(0, 6);
+  }
+
+  function attachSuggest(input, list, getHits, onPick) {
+    function hide() { list.hidden = true; input.setAttribute("aria-expanded", "false"); }
+    function show() {
+      var r = getHits(fold(input.value));
+      list.innerHTML = "";
+      if (!r || !r.hits.length) { hide(); return; }
+      var head = document.createElement("li"); head.className = "head"; head.textContent = r.head;
+      list.append(head);
+      r.hits.forEach(function (e) {
+        var li = document.createElement("li");
+        var b = document.createElement("button"); b.type = "button";
+        var nm = document.createElement("div"); nm.className = "sname"; nm.textContent = e.name;
+        b.append(nm, metaLine(e, true));
+        b.addEventListener("pointerdown", function (ev) { ev.preventDefault(); });
+        b.addEventListener("click", function () { hide(); onPick(e); });
+        li.append(b); list.append(li);
+      });
+      list.hidden = false; input.setAttribute("aria-expanded", "true");
+    }
+    input.addEventListener("input", show);
+    input.addEventListener("focus", show);
+    input.addEventListener("blur", function () { setTimeout(hide, 150); });
+    input.addEventListener("keydown", function (ev) { if (ev.key === "Escape") hide(); });
+  }
+
+  function hideSuggestions() { $("suggest").hidden = true; fName.setAttribute("aria-expanded", "false"); }
+  attachSuggest(fName, $("suggest"), function (q) {
+    if (editingId) return null;
+    return { head: q ? "Jadłeś już wcześniej" : "Ostatnio jedzone", hits: matchHits(pastMeals(), q) };
+  }, function (e) { fillFrom(e); });
+
+  function renderIngs(focusId) {
+    var ol = $("ings"); ol.innerHTML = "";
+    formItems.forEach(function (it, idx) {
+      var li = document.createElement("li"); li.className = "ing";
+      var top = document.createElement("div"); top.className = "ing-top";
+      var nr = document.createElement("span"); nr.className = "exnum num"; nr.textContent = idx + 1;
+      var f = document.createElement("div"); f.className = "field";
+      var lab = document.createElement("label"); lab.className = "vh"; lab.htmlFor = "in-" + it.id; lab.textContent = "Składnik " + (idx + 1);
+      var inp = document.createElement("input"); inp.id = "in-" + it.id; inp.maxLength = 60; inp.value = it.name;
+      inp.placeholder = idx === 0 ? "Składnik, np. ser żółty" : "Składnik, np. szynka";
+      inp.setAttribute("role", "combobox"); inp.setAttribute("aria-autocomplete", "list");
+      inp.setAttribute("aria-expanded", "false"); inp.setAttribute("aria-controls", "is-" + it.id);
+      var sl = document.createElement("ul"); sl.className = "suggest full"; sl.id = "is-" + it.id; sl.hidden = true;
+      f.append(lab, inp, sl);
+      inp.addEventListener("input", function () { it.name = inp.value; });
+      attachSuggest(inp, sl, function (q) {
+        var have = {};
+        formItems.forEach(function (x) { if (x !== it) have[fold(x.name)] = 1; });
+        var all = pastIngredients().filter(function (x) { return !have[fold(x.name)]; });
+        return { head: q ? "Używałeś już wcześniej" : "Ostatnio używane składniki", hits: matchHits(all, q) };
+      }, function (src) {
+        it.name = src.name;
+        it.kcal = val(src, "kcal") || "";
+        NUTRIENTS.forEach(function (n) { it[n.key] = val(src, n.key) || ""; });
+        renderIngs(); updateSum();
+      });
+      top.append(nr, f);
+      if (formItems.length > 1) {
+        top.append(miniBtn("✕", "Usuń składnik " + (idx + 1), false, function () {
+          formItems.splice(idx, 1); renderIngs(); updateSum();
+        }));
+      }
+
+      var g1 = document.createElement("div"); g1.className = "grid4";
+      var g2 = document.createElement("div"); g2.className = "grid3";
+      var hint = document.createElement("div"); hint.className = "hint num";
+      var kIn = null;
+      function ingHint() {
+        hint.innerHTML = "";
+        var p = num(it.p), fa = num(it.f), c = num(it.c), k = num(it.kcal);
+        var calc = kcalFromMacros(p, fa, c);
+        kIn.placeholder = calc ? "≈ " + calc : "auto";
+        if (k && (p || fa || c) && Math.abs(calc - k) > Math.max(25, k * 0.15)) {
+          hint.append("Z makro wychodzi " + calc + " kcal. ");
+          var b = document.createElement("button"); b.type = "button"; b.textContent = "Użyj " + calc;
+          b.addEventListener("click", function () { it.kcal = calc; kIn.value = calc; updateSum(); ingHint(); });
+          hint.append(b);
+        }
+      }
+      [{ key: "kcal", label: "kcal" }].concat(NUTRIENTS).forEach(function (n) {
+        var fld = document.createElement("div"); fld.className = "field";
+        var l = document.createElement("label"); l.htmlFor = "iv-" + it.id + "-" + n.key;
+        if (n.color) l.append(dot(n), n.label); else l.textContent = n.label;
+        var i = document.createElement("input");
+        i.id = "iv-" + it.id + "-" + n.key; i.type = "number"; i.inputMode = "decimal"; i.min = "0"; i.step = "any";
+        i.placeholder = "0"; i.value = it[n.key] === 0 ? "" : it[n.key];
+        i.addEventListener("input", function () { it[n.key] = i.value; updateSum(); ingHint(); });
+        fld.append(l, i);
+        (n.row === 2 ? g2 : g1).append(fld);
+        if (n.key === "kcal") kIn = i;
+      });
+      ingHint();
+      li.append(top, g1, g2, hint);
+      ol.append(li);
+    });
+    if (focusId) { var fi = $("in-" + focusId); if (fi) fi.focus(); }
+  }
+
+  function updateSum() {
+    var t = sumItems(formItems), box = $("mealSum"); box.innerHTML = "";
+    var n = formItems.length;
+    var l = document.createElement("span"); l.className = "label";
+    l.textContent = "Suma posiłku" + (n > 1 ? " · " + n + " " + plural(n, "składnik", "składniki", "składników") : "");
+    var k = document.createElement("div"); k.className = "total num"; k.textContent = t.kcal + " kcal";
+    box.append(l, k, metaLine(t, false));
+  }
+
+  $("addIng").addEventListener("click", function () {
+    var it = blankItem(); formItems.push(it);
+    renderIngs(it.id); updateSum();
+  });
 
   function fillFrom(e) {
     fName.value = e.name || "";
-    fKcal.value = val(e, "kcal") || "";
-    NUTRIENTS.forEach(function (n) { inputs[n.key].value = val(e, n.key) || ""; });
-    updateHint();
+    var src = e.items && e.items.length ? e.items : [Object.assign({}, e, { name: "" })];
+    formItems = src.map(function (it) {
+      var x = blankItem();
+      x.name = it.name || "";
+      x.kcal = val(it, "kcal") || "";
+      NUTRIENTS.forEach(function (n) { x[n.key] = val(it, n.key) || ""; });
+      return x;
+    });
+    renderIngs(); updateSum();
   }
 
-  function updateHint() {
-    var p = num(inputs.p.value), f = num(inputs.f.value), c = num(inputs.c.value), k = num(fKcal.value);
-    var h = $("calcHint"); h.innerHTML = "";
-    if (!(p || f || c)) { h.textContent = k ? "" : "Wpisz kalorie albo samo makro, kalorie policzę z makro."; return; }
-    var calc = kcalFromMacros(p, f, c);
-    if (!k) { h.textContent = "Z makro wychodzi " + calc + " kcal (tyle zapiszę)."; return; }
-    if (Math.abs(calc - k) > Math.max(25, k * 0.15)) {
-      h.append("Z makro wychodzi " + calc + " kcal. ");
-      var b = document.createElement("button"); b.type = "button"; b.textContent = "Użyj " + calc;
-      b.addEventListener("click", function () { fKcal.value = calc; updateHint(); });
-      h.append(b);
-    }
-  }
-  fKcal.addEventListener("input", updateHint);
-
-  function clearForm() { fName.value = ""; fKcal.value = ""; NUTRIENTS.forEach(function (n) { inputs[n.key].value = ""; }); }
+  function clearForm() { fName.value = ""; formItems = [blankItem()]; renderIngs(); updateSum(); }
 
   function startEdit(id) {
     var e = (state.days[day] || []).find(function (x) { return x.id === id; });
@@ -782,18 +931,28 @@ details.how p { font-size: .85rem; color: var(--muted); margin: 8px 0 0; max-wid
     $("formTitle").textContent = "Dodaj posiłek";
     $("submitBtn").textContent = "Dodaj";
     $("cancelEdit").hidden = true;
-    updateHint();
   }
   $("cancelEdit").addEventListener("click", stopEdit);
 
   $("addForm").addEventListener("submit", function (ev) {
     ev.preventDefault();
     hideSuggestions();
-    var entry = { id: editingId || uid(), name: fName.value.trim() };
-    NUTRIENTS.forEach(function (n) { entry[n.key] = r1(num(inputs[n.key].value)); });
-    entry.kcal = Math.round(num(fKcal.value) || kcalFromMacros(entry.p, entry.f, entry.c));
-    if (!entry.kcal && !entry.name) { toast("Wpisz nazwę i kalorie albo makro"); fName.focus(); return; }
-    if (!entry.name) entry.name = "Posiłek";
+    var used = formItems.filter(function (it) {
+      return it.name.trim() || itemKcal(it) || NUTRIENTS.some(function (n) { return num(it[n.key]); });
+    });
+    var t = sumItems(used);
+    var named = used.filter(function (it) { return it.name.trim(); });
+    var name = fName.value.trim() || named.map(function (it) { return it.name.trim(); }).join(", ");
+    if (!t.kcal && !name) { toast("Wpisz nazwę i kalorie albo makro"); fName.focus(); return; }
+    var entry = { id: editingId || uid(), name: name || "Posiłek", kcal: t.kcal };
+    NUTRIENTS.forEach(function (n) { entry[n.key] = t[n.key]; });
+    if (used.length > 1 || named.length) {
+      entry.items = used.map(function (it) {
+        var x = { name: it.name.trim() || "Składnik", kcal: Math.round(itemKcal(it)) };
+        NUTRIENTS.forEach(function (n) { x[n.key] = r1(num(it[n.key])); });
+        return x;
+      });
+    }
     var list = state.days[day] || (state.days[day] = []);
     if (editingId) {
       var i = list.findIndex(function (x) { return x.id === editingId; });
@@ -804,6 +963,8 @@ details.how p { font-size: .85rem; color: var(--muted); margin: 8px 0 0; max-wid
       save(); clearForm(); render(); toast("Dodano: " + entry.name);
     }
   });
+
+  clearForm();
 
   $("prevDay").addEventListener("click", function () { day = shiftDay(day, -1); stopEdit(); render(); });
   $("nextDay").addEventListener("click", function () { day = shiftDay(day, 1); stopEdit(); render(); });
