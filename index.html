@@ -308,6 +308,43 @@ details.how > :not(summary) { margin-top: 10px; }
 .spname { flex: 1; min-width: 0; overflow-wrap: anywhere; font-weight: 700; }
 .linkbtn { border: 0; background: none; padding: 0; color: var(--accent); font-weight: 700; text-decoration: underline; font-size: inherit; }
 .planlabel { margin: -4px 0 0; }
+/* Records */
+.subtabs.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.subtabs.four button { font-size: .82rem; padding: 9px 2px; }
+.rec-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.rec { border: 1px solid var(--line); border-radius: 12px; background: var(--bg); padding: 4px 12px 12px; display: flex; flex-direction: column; gap: 8px; }
+.rec-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; border: 0; background: none; padding: 8px 0 0; text-align: left; width: 100%; }
+.rec-name { display: flex; flex-direction: column; min-width: 0; }
+.rec-name strong { overflow-wrap: anywhere; }
+.rec-name small { color: var(--muted); font-size: .8rem; }
+.rec-val { font-family: var(--font-display); font-weight: 700; font-size: 1.35rem; color: var(--fat); white-space: nowrap; display: flex; gap: 6px; align-items: center; }
+.rec-val .tro { font-size: 1.05rem; }
+.rec-hist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.rec-hist li { display: flex; justify-content: space-between; align-items: center; gap: 8px; border-top: 1px solid var(--line); padding: 2px 0; font-size: .9rem; }
+
+/* Record celebration */
+.hype {
+  position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; cursor: pointer;
+  padding-block: calc(24px + env(safe-area-inset-top, 0px)) calc(24px + env(safe-area-inset-bottom, 0px));
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  background: radial-gradient(circle at 50% 42%, rgba(245, 203, 60, .26), transparent 60%), rgba(11, 20, 48, .97);
+}
+.hype canvas { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.hype-card { position: relative; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.hype-tro { font-size: 4.5rem; line-height: 1; }
+.hype-title { font-family: var(--font-display); font-weight: 700; font-size: 1.6rem; letter-spacing: .05em; color: var(--fat); text-transform: uppercase; }
+.hype-big { font-family: var(--font-display); font-weight: 700; font-size: 3.4rem; line-height: 1.05; color: var(--fg); text-shadow: 0 0 24px rgba(245, 203, 60, .55); }
+.hype-sub { color: var(--fg); font-size: 1rem; max-width: 30ch; text-wrap: balance; }
+.hype-tap { color: var(--muted); font-size: .8rem; margin-top: 12px; }
+.hype.go .hype-tro { animation: hype-tro .9s cubic-bezier(.2, 1.6, .4, 1) both; }
+.hype.go .hype-title { animation: hype-pop .6s .15s cubic-bezier(.2, 1.6, .4, 1) both; }
+.hype.go .hype-big { animation: hype-pop .7s .3s cubic-bezier(.2, 1.6, .4, 1) both, hype-glow .9s 1s ease-in-out 3 alternate; }
+.hype.go .hype-sub, .hype.go .hype-tap { animation: hype-up .5s .6s ease both; }
+@keyframes hype-tro { 0% { transform: scale(.2) rotate(-25deg); opacity: 0 } 60% { transform: scale(1.25) rotate(8deg); opacity: 1 } 100% { transform: scale(1) rotate(0) } }
+@keyframes hype-pop { 0% { transform: scale(.4); opacity: 0 } 100% { transform: scale(1); opacity: 1 } }
+@keyframes hype-glow { to { text-shadow: 0 0 44px rgba(245, 203, 60, .95); transform: scale(1.05) } }
+@keyframes hype-up { from { opacity: 0; transform: translateY(10px) } to { opacity: 1; transform: none } }
+@media (prefers-reduced-motion: reduce) { .hype.go * { animation: none !important; } }
 .toast {
   position: fixed; left: 50%; transform: translateX(-50%);
   bottom: calc(20px + env(safe-area-inset-bottom, 0px));
@@ -464,10 +501,11 @@ details.how > :not(summary) { margin-top: 10px; }
   </div>
 
   <div class="view" id="view-trening" hidden>
-    <div class="subtabs three" id="trainTabs" role="tablist" aria-label="Trening">
+    <div class="subtabs four" id="trainTabs" role="tablist" aria-label="Trening">
       <button type="button" role="tab" data-tsub="kal" aria-selected="true">Kalendarz</button>
       <button type="button" role="tab" data-tsub="stat" aria-selected="false">Statystyki</button>
       <button type="button" role="tab" data-tsub="split" aria-selected="false">SPLIT</button>
+      <button type="button" role="tab" data-tsub="rek" aria-selected="false">Rekordy</button>
     </div>
     <div class="view" id="tsub-kal">
     <section class="card" aria-labelledby="calTitle">
@@ -520,6 +558,28 @@ details.how > :not(summary) { margin-top: 10px; }
         <ul class="exlist" id="splitList"></ul>
       </section>
     </div>
+    <div class="view" id="tsub-rek" hidden>
+      <section class="card" id="rcCard" aria-labelledby="rcTitle">
+        <h2 id="rcTitle">Nowy rekord</h2>
+        <div class="field">
+          <label for="rcName">Ćwiczenie</label>
+          <input id="rcName" maxlength="60" placeholder="np. Wyciskanie na ławce płaskiej" autocomplete="off">
+          <ul class="suggest full" id="rcSuggest" hidden></ul>
+        </div>
+        <div class="grid2">
+          <div class="field"><label for="rcKg">Ciężar (kg)</label><input id="rcKg" type="number" inputmode="decimal" min="0" step="0.5" placeholder="np. 100"></div>
+          <div class="field"><label for="rcReps">Powtórzenia</label><input id="rcReps" type="number" inputmode="numeric" min="1" step="1"></div>
+        </div>
+        <div class="field"><label for="rcDate">Data</label><input id="rcDate" type="date"></div>
+        <p class="sub" id="rcHint" style="margin:0"></p>
+        <button type="button" class="primary" id="rcSave">Zapisz rekord</button>
+      </section>
+      <section class="card" aria-labelledby="rclTitle">
+        <h2 id="rclTitle">Twoje rekordy</h2>
+        <p class="empty" id="rcEmpty" style="margin:0">Nie masz jeszcze rekordów. Wpisz pierwszy powyżej, np. maksymalne wyciskanie na ławce.</p>
+        <ul class="rec-list" id="rcList"></ul>
+      </section>
+    </div>
   </div>
 
   <details class="card" id="backupBox">
@@ -547,6 +607,16 @@ details.how > :not(summary) { margin-top: 10px; }
       <button type="button" class="ghost" id="importData">Wczytaj wklejone dane</button>
     </details>
   </details>
+</div>
+<div class="hype" id="hype" role="alert" hidden>
+  <canvas id="hypeCanvas" aria-hidden="true"></canvas>
+  <div class="hype-card">
+    <div class="hype-tro" aria-hidden="true">🏆</div>
+    <div class="hype-title" id="hypeTitle"></div>
+    <div class="hype-big num" id="hypeBig"></div>
+    <div class="hype-sub" id="hypeSub"></div>
+    <div class="hype-tap">Stuknij, żeby zamknąć</div>
+  </div>
 </div>
 <div class="toast" id="toast" role="status" hidden></div>
 
@@ -649,6 +719,7 @@ details.how > :not(summary) { margin-top: 10px; }
   state.goals = Object.assign(defaultGoals(), state.goals || {});
   if (!state.workouts) state.workouts = demoWorkouts();
   if (!state.splits) state.splits = [];
+  if (!state.records) state.records = [];
   if (!state.weights) state.weights = demoWeights();
   state.profile = Object.assign({ sex: "m", age: null, h: null, kg: null, act: 1.55, goal: null }, state.profile || {});
   var day = todayStr();
@@ -1138,6 +1209,7 @@ details.how > :not(summary) { margin-top: 10px; }
     renderWorkoutDay();
     renderProgress();
     renderSplits();
+    renderRecords();
     $("demoBar").hidden = !hasDemo();
   }
 
@@ -1298,6 +1370,7 @@ details.how > :not(summary) { margin-top: 10px; }
       s[key] = key === "kg" ? r1(num(i.value)) : Math.round(num(i.value));
       ns.textContent = exSummary(ex); save(); scheduleProgress();
     });
+    i.addEventListener("change", function () { checkWorkoutPR(ex, s); });
     td.append(i);
     return { td: td, input: i };
   }
@@ -1970,7 +2043,7 @@ details.how > :not(summary) { margin-top: 10px; }
   function hasRealData() {
     return Object.keys(state.days).some(function (k) { return state.days[k].some(function (e) { return !e.demo; }); }) ||
       Object.keys(state.workouts).some(function (k) { return !state.workouts[k].demo; }) ||
-      state.weights.some(function (w) { return !w.demo; }) || state.splits.length > 0;
+      state.weights.some(function (w) { return !w.demo; }) || state.splits.length > 0 || state.records.length > 0;
   }
   function daysSince(iso) { return Math.floor((Date.now() - new Date(iso).getTime()) / 864e5); }
 
@@ -2052,7 +2125,7 @@ details.how > :not(summary) { margin-top: 10px; }
   }
   $("importYes").addEventListener("click", function () {
     var d = pendingImport; if (!d) return;
-    state = { goals: Object.assign(defaultGoals(), d.goals || {}), days: d.days, workouts: d.workouts || {}, weights: d.weights || [], splits: d.splits || [],
+    state = { goals: Object.assign(defaultGoals(), d.goals || {}), days: d.days, workouts: d.workouts || {}, weights: d.weights || [], splits: d.splits || [], records: d.records || [],
       profile: Object.assign({ sex: "m", age: null, h: null, kg: null, act: 1.55, goal: null }, d.profile || {}) };
     pendingImport = null; $("importConfirm").hidden = true; $("importBox").value = "";
     save(); markBackup(); fillGoals(); stopEdit(); render(); renderTraining(); renderWeight(); toast("Dane wczytane");
@@ -2095,6 +2168,13 @@ details.how > :not(summary) { margin-top: 10px; }
       state.weights.push({ d: w.d, kg: w.kg }); have[w.d] = 1; added.weights++;
     });
     state.weights.sort(function (a, b) { return a.d < b.d ? -1 : 1; });
+    var recSig = {};
+    state.records.forEach(function (x) { recSig[x.id] = 1; recSig[[fold(x.name), x.kg, x.r, x.d].join("|")] = 1; });
+    (d.records || []).forEach(function (x) {
+      var sg = [fold(x.name), x.kg, x.r, x.d].join("|");
+      if (recSig[x.id] || recSig[sg]) return;
+      state.records.push(x); recSig[x.id] = 1; recSig[sg] = 1;
+    });
     (d.splits || []).forEach(function (sp) {
       var cur = state.splits.find(function (x) { return fold(x.name) === fold(sp.name); });
       if (!cur) { state.splits.push(sp); return; }
@@ -2132,7 +2212,7 @@ details.how > :not(summary) { margin-top: 10px; }
 
   // ---------- Training sub-tabs: Kalendarz / Statystyki / SPLIT ----------
   var TSUB_KEY = "dziennik-makro-trening-podzakladka";
-  var TSUBS = ["kal", "stat", "split"];
+  var TSUBS = ["kal", "stat", "split", "rek"];
   var treningSub = "kal";
   try { var ts = localStorage.getItem(TSUB_KEY); if (TSUBS.indexOf(ts) !== -1) treningSub = ts; } catch (e) {}
   function showTSub(v) {
@@ -2329,6 +2409,193 @@ details.how > :not(summary) { margin-top: 10px; }
     });
     wrap.append(lab, chips);
     return wrap;
+  }
+
+  // ---------- Celebration: confetti, a big headline and a short vibration ----------
+  var reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var celebrateTimer = null;
+  function celebrate(title, big, sub) {
+    var ov = $("hype");
+    $("hypeTitle").textContent = title;
+    $("hypeBig").textContent = big;
+    $("hypeSub").textContent = sub || "";
+    ov.hidden = false;
+    ov.classList.remove("go"); void ov.offsetWidth; ov.classList.add("go");
+    try { if (navigator.vibrate) navigator.vibrate([90, 50, 90, 50, 220]); } catch (e) {}
+    if (!reduceMotion) confetti($("hypeCanvas"));
+    clearTimeout(celebrateTimer);
+    celebrateTimer = setTimeout(closeHype, 3600);
+  }
+  function closeHype() { $("hype").hidden = true; $("hype").classList.remove("go"); }
+  $("hype").addEventListener("click", closeHype);
+
+  function confetti(cv) {
+    var dpr = window.devicePixelRatio || 1, W = cv.clientWidth, H = cv.clientHeight;
+    cv.width = W * dpr; cv.height = H * dpr;
+    var ctx = cv.getContext("2d"); ctx.scale(dpr, dpr);
+    var css = getComputedStyle(document.documentElement);
+    var colors = ["--protein", "--fat", "--carbs", "--sugar", "--accent", "--i3"].map(function (v) { return css.getPropertyValue(v).trim() || "#fff"; });
+    var parts = [];
+    for (var i = 0; i < 160; i++) {
+      var side = i % 2 ? 1 : -1;
+      parts.push({
+        x: W / 2 + side * W * 0.1, y: H * 0.62,
+        vx: side * (2 + Math.random() * 7) * (Math.random() < 0.3 ? -0.4 : 1), vy: -(8 + Math.random() * 10),
+        s: 5 + Math.random() * 6, r: Math.random() * 6, vr: (Math.random() - 0.5) * 0.4,
+        c: colors[i % colors.length], shape: i % 3
+      });
+    }
+    var start = performance.now();
+    (function frame(t) {
+      var el = t - start;
+      ctx.clearRect(0, 0, W, H);
+      parts.forEach(function (p) {
+        p.vy += 0.32; p.vx *= 0.99; p.x += p.vx; p.y += p.vy; p.r += p.vr;
+        ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.r);
+        ctx.globalAlpha = Math.max(0, 1 - el / 3200);
+        ctx.fillStyle = p.c;
+        if (p.shape === 0) ctx.fillRect(-p.s / 2, -p.s / 4, p.s, p.s / 2);
+        else if (p.shape === 1) { ctx.beginPath(); ctx.arc(0, 0, p.s / 2.4, 0, 6.3); ctx.fill(); }
+        else { ctx.beginPath(); ctx.moveTo(0, -p.s / 2); ctx.lineTo(p.s / 2, p.s / 2); ctx.lineTo(-p.s / 2, p.s / 2); ctx.fill(); }
+        ctx.restore();
+      });
+      if (el < 3300 && !$("hype").hidden) requestAnimationFrame(frame); else ctx.clearRect(0, 0, W, H);
+    })(start);
+  }
+
+  // ---------- Records: max lifts entered by hand ----------
+  function e1rm(kg, r) { return r <= 1 ? kg : kg * (1 + r / 30); }
+  function recordsFor(name) {
+    var k = fold(name);
+    return state.records.filter(function (x) { return fold(x.name) === k; })
+      .sort(function (a, b) { return a.d < b.d ? -1 : a.d > b.d ? 1 : 0; });
+  }
+  function better(a, b) { return !b || a.kg > b.kg || (a.kg === b.kg && a.r > b.r); }
+  function bestRecord(name) {
+    var best = null;
+    recordsFor(name).forEach(function (x) { if (better(x, best)) best = x; });
+    return best;
+  }
+  // Heaviest set from workouts, optionally leaving one day out (the day being edited)
+  function bestFromWorkouts(name, skipDay) {
+    var best = null;
+    sessionsFor(name).forEach(function (s) {
+      if (s.day === skipDay) return;
+      s.sets.forEach(function (x) {
+        if (!x.kg) return;
+        var c = { kg: x.kg, r: x.r || 1, d: s.day };
+        if (better(c, best)) best = c;
+      });
+    });
+    return best;
+  }
+  function liftText(x) { return kgText(x.kg) + (x.r > 1 ? " × " + x.r : ""); }
+
+  $("rcDate").value = todayStr();
+  $("rcReps").value = 1;
+  function rcHint() {
+    var name = $("rcName").value.trim(), h = $("rcHint");
+    h.textContent = "";
+    if (!name) return;
+    var rec = bestRecord(name), wb = bestFromWorkouts(name);
+    var parts = [];
+    if (rec) parts.push("Twój rekord: " + liftText(rec) + " (" + shortDate(rec.d) + ")");
+    if (wb) parts.push("Najciężej na treningu: " + liftText(wb) + (wb.r > 1 ? ", szac. max ok. " + kgText(Math.round(e1rm(wb.kg, wb.r))) : ""));
+    h.textContent = parts.length ? parts.join(". ") + "." : "Pierwszy rekord w tym ćwiczeniu.";
+  }
+  nameSuggest($("rcName"), $("rcSuggest"), function () {
+    var seen = {}, out = [];
+    state.records.slice().reverse().forEach(function (x) { var k = fold(x.name); if (!seen[k]) { seen[k] = 1; out.push({ name: x.name, meta: "rekord " + liftText(bestRecord(x.name)) }); } });
+    allExerciseNames().forEach(function (h) { var k = fold(h.name); if (!seen[k]) { seen[k] = 1; out.push(h); } });
+    return out;
+  }, function (n) { $("rcName").value = n; rcHint(); $("rcKg").focus(); });
+  $("rcName").addEventListener("input", rcHint);
+
+  $("rcSave").addEventListener("click", function () {
+    var name = $("rcName").value.trim(), kg = r1(num($("rcKg").value)), r = Math.max(1, Math.round(num($("rcReps").value)) || 1);
+    var d = $("rcDate").value || todayStr();
+    if (!name) { toast("Wpisz nazwę ćwiczenia"); $("rcName").focus(); return; }
+    if (!kg) { toast("Wpisz ciężar w kg"); $("rcKg").focus(); return; }
+    var prev = bestRecord(name);
+    var rec = { id: uid(), name: name, kg: kg, r: r, d: d };
+    state.records.push(rec);
+    save();
+    $("rcKg").value = ""; $("rcReps").value = 1;
+    renderRecords(); rcHint();
+    if (!prev) celebrate("Pierwszy rekord!", liftText(rec), name + ". Teraz tylko go bić.");
+    else if (better(rec, prev)) {
+      var diff = r1(rec.kg - prev.kg);
+      celebrate("NOWY REKORD!", liftText(rec), name + (diff > 0 ? ": +" + kgText(diff) + " więcej niż poprzednio" : ": więcej powtórzeń niż poprzednio"));
+    } else toast("Zapisano wynik. Rekord nadal: " + liftText(prev));
+  });
+
+  var openRec = {};
+  function renderRecords() {
+    var names = {}, list = [];
+    state.records.forEach(function (x) { var k = fold(x.name); if (!names[k]) { names[k] = 1; list.push(x.name); } });
+    list.sort(function (a, b) { return bestRecord(b).d < bestRecord(a).d ? -1 : 1; });
+    $("rcEmpty").hidden = !!list.length;
+    var ul = $("rcList"); ul.innerHTML = "";
+    list.forEach(function (name) {
+      var recs = recordsFor(name), best = bestRecord(name);
+      var li = document.createElement("li"); li.className = "rec";
+      var open = !!openRec[fold(name)];
+      var head = document.createElement("button"); head.type = "button"; head.className = "rec-head"; head.setAttribute("aria-expanded", String(open));
+      var left = document.createElement("span"); left.className = "rec-name";
+      var nm = document.createElement("strong"); nm.textContent = name;
+      var since = document.createElement("small");
+      var firstRec = recs[0];
+      since.textContent = recs.length > 1 && best.kg > firstRec.kg
+        ? "+" + kgText(r1(best.kg - firstRec.kg)) + " od " + shortDate(firstRec.d)
+        : "ustanowiony " + shortDate(best.d);
+      left.append(nm, since);
+      var val2 = document.createElement("span"); val2.className = "rec-val num";
+      var tro = document.createElement("span"); tro.className = "tro"; tro.setAttribute("aria-hidden", "true"); tro.textContent = "🏆";
+      val2.append(tro, liftText(best));
+      head.append(left, val2);
+      head.addEventListener("click", function () { openRec[fold(name)] = !open; renderRecords(); });
+      li.append(head);
+      if (open) {
+        var wb = bestFromWorkouts(name);
+        if (wb) {
+          var p = document.createElement("p"); p.className = "sub"; p.style.margin = "0";
+          p.textContent = "Najciężej na treningu: " + liftText(wb) + " (" + shortDate(wb.d) + ")" +
+            (wb.r > 1 ? ", szacowany max ok. " + kgText(Math.round(e1rm(wb.kg, wb.r))) : "");
+          li.append(p);
+        }
+        var hl = document.createElement("ul"); hl.className = "rec-hist";
+        recs.slice().reverse().forEach(function (x) {
+          var hi = document.createElement("li");
+          var t = document.createElement("span"); t.className = "num"; t.textContent = shortDate(x.d) + "  ·  " + liftText(x);
+          if (x === best) { var bb = document.createElement("span"); bb.className = "badge"; bb.textContent = "Rekord"; t.append(" ", bb); }
+          hi.append(t, miniBtn("✕", "Usuń wynik z " + shortDate(x.d), false, function () {
+            state.records = state.records.filter(function (y) { return y !== x; });
+            save(); renderRecords(); toast("Usunięto wynik");
+          }));
+          hl.append(hi);
+        });
+        var again = document.createElement("button"); again.type = "button"; again.className = "ghost";
+        again.textContent = "Wpisz nowy wynik w tym ćwiczeniu";
+        again.addEventListener("click", function () {
+          $("rcName").value = name; rcHint(); $("rcCard").scrollIntoView({ behavior: "smooth", block: "start" }); $("rcKg").focus();
+        });
+        li.append(hl, again);
+      }
+      ul.append(li);
+    });
+  }
+
+  // During a workout: a set heavier than anything before for that exercise gets the celebration too
+  var hyped = {};
+  function checkWorkoutPR(ex, s) {
+    if (!s.kg) return;
+    var prior = bestFromWorkouts(ex.name, selDay), rec = bestRecord(ex.name);
+    var priorKg = Math.max(prior ? prior.kg : 0, rec ? rec.kg : 0);
+    var key = selDay + "|" + fold(ex.name);
+    if (priorKg > 0 && s.kg > priorKg && (!hyped[key] || s.kg > hyped[key])) {
+      hyped[key] = s.kg;
+      celebrate("Nowy rekord ciężaru!", kgText(s.kg) + (s.r > 1 ? " × " + s.r : ""), ex.name + ": +" + kgText(r1(s.kg - priorKg)) + " więcej niż kiedykolwiek");
+    }
   }
 
   fillGoals();
