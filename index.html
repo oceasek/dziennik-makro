@@ -158,10 +158,10 @@ button { cursor: pointer; }
 .entry .del.armed { background: var(--over); color: #fff; font-size: .7rem; width: auto; padding: 0 10px; border-radius: 999px; }
 .empty { color: var(--muted); padding: 8px 0; }
 
-details.card summary { cursor: pointer; font-family: var(--font-display); font-weight: 700; font-size: 1.05rem; list-style: none; }
-details.card summary::-webkit-details-marker { display: none; }
-details.card summary::after { content: "+"; float: right; color: var(--muted); }
-details[open].card summary::after { content: "–"; }
+details.card > summary { cursor: pointer; font-family: var(--font-display); font-weight: 700; font-size: 1.05rem; list-style: none; }
+details.card > summary::-webkit-details-marker { display: none; }
+details.card > summary::after { content: "+"; float: right; color: var(--muted); }
+details[open].card > summary::after { content: "–"; }
 textarea { min-height: 90px; font-size: .8rem; font-family: ui-monospace, monospace; }
 /* Menu */
 .titlebar { position: relative; display: flex; align-items: center; gap: 10px; }
@@ -283,6 +283,19 @@ details.how p { font-size: .85rem; color: var(--muted); margin: 8px 0 0; max-wid
 .ing-list { flex-basis: 100%; list-style: none; margin: 0 0 4px 4px; padding: 2px 0 2px 12px; border-left: 2px solid var(--line); display: flex; flex-direction: column; gap: 8px; }
 .ing-list .iname { font-weight: 700; font-size: .9rem; display: flex; justify-content: space-between; gap: 8px; }
 .ing-list .iname span { font-family: var(--font-display); white-space: nowrap; }
+/* Backup */
+.remind {
+  background: var(--track); border: 1px solid var(--accent); border-radius: var(--radius);
+  padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; font-size: .92rem;
+}
+.remind .row button { flex: 1; }
+.confirm { border: 1px solid var(--over); border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+.confirm p { margin: 0; font-size: .9rem; }
+details.how > summary { list-style: none; }
+details.how > summary::-webkit-details-marker { display: none; }
+details.card > :not(summary) { margin-top: 12px; }
+details.card > button, details.how > button { width: 100%; }
+details.how > :not(summary) { margin-top: 10px; }
 .toast {
   position: fixed; left: 50%; transform: translateX(-50%);
   bottom: calc(20px + env(safe-area-inset-bottom, 0px));
@@ -316,6 +329,14 @@ details.how p { font-size: .85rem; color: var(--muted); margin: 8px 0 0; max-wid
   <div class="demo" id="demoBar" hidden>
     <span>To są przykładowe wpisy, żebyś zobaczył, jak to wygląda.</span>
     <button id="clearDemo">Usuń przykłady</button>
+  </div>
+
+  <div class="remind" id="backupRemind" role="status" hidden>
+    <span id="remindText"></span>
+    <div class="row">
+      <button type="button" class="primary" id="remindSave">Zapisz kopię</button>
+      <button type="button" class="ghost" id="remindLater">Później</button>
+    </div>
   </div>
 
   <div class="view" id="view-makro">
@@ -463,13 +484,27 @@ details.how p { font-size: .85rem; color: var(--muted); margin: 8px 0 0; max-wid
 
   <details class="card" id="backupBox">
     <summary>Kopia zapasowa</summary>
-    <p class="sub" style="margin:0">Dane są zapisane tylko w tej przeglądarce na tym telefonie. Co jakiś czas skopiuj je i wklej np. do notatek, żeby ich nie stracić.</p>
-    <button type="button" class="ghost" id="copyData">Kopiuj wszystkie dane</button>
-    <div class="field">
-      <label for="importBox">Przywróć: wklej tu skopiowane dane</label>
-      <textarea id="importBox" spellcheck="false"></textarea>
+    <p class="sub" style="margin:0">Dane są zapisane tylko w tej przeglądarce na tym telefonie. Raz w tygodniu zapisz kopię do pliku i wyślij ją sobie, np. na Dysk Google albo mailem. Kopia obejmuje wszystko: posiłki, treningi, wagę i cele.</p>
+    <p class="sub" id="backupInfo" style="margin-bottom:0; color: var(--fg)"></p>
+    <button type="button" class="primary" id="saveFile">Zapisz kopię do pliku</button>
+    <button type="button" class="ghost" id="loadFileBtn">Wczytaj kopię z pliku</button>
+    <input type="file" id="loadFile" accept=".json,application/json,text/plain" hidden>
+    <div class="confirm" id="importConfirm" hidden>
+      <p id="importSummary"></p>
+      <div class="row">
+        <button type="button" class="primary" id="importYes">Wczytaj</button>
+        <button type="button" class="ghost" id="importNo">Anuluj</button>
+      </div>
     </div>
-    <button type="button" class="ghost" id="importData">Wczytaj dane (zastąpi obecne)</button>
+    <details class="how" id="textBackup">
+      <summary>Kopia jako tekst (kopiuj i wklej)</summary>
+      <button type="button" class="ghost" id="copyData">Kopiuj wszystkie dane</button>
+      <div class="field">
+        <label for="importBox">Przywróć: wklej tu skopiowane dane</label>
+        <textarea id="importBox" spellcheck="false"></textarea>
+      </div>
+      <button type="button" class="ghost" id="importData">Wczytaj wklejone dane</button>
+    </details>
   </details>
 </div>
 <div class="toast" id="toast" role="status" hidden></div>
@@ -990,30 +1025,6 @@ details.how p { font-size: .85rem; color: var(--muted); margin: 8px 0 0; max-wid
     save(); fillGoals(); render(); $("goalsBox").open = false; toast("Cele zapisane");
   });
 
-  $("copyData").addEventListener("click", function () {
-    var txt = JSON.stringify(state);
-    var box = $("importBox");
-    function fallback() { box.value = txt; box.focus(); box.select(); toast("Zaznaczyłem dane, skopiuj je ręcznie"); }
-    try {
-      navigator.clipboard.writeText(txt).then(function () { toast("Skopiowano dane do schowka"); }, fallback);
-    } catch (e) { fallback(); }
-  });
-  var importBtn = $("importData");
-  importBtn.addEventListener("click", function () {
-    var d;
-    try { d = JSON.parse($("importBox").value); } catch (e) { toast("To nie wygląda na skopiowane dane"); return; }
-    if (!d || typeof d.days !== "object") { toast("Brakuje dni w danych, sprawdź wklejony tekst"); return; }
-    if (!importBtn.dataset.armed) {
-      importBtn.dataset.armed = "1"; importBtn.textContent = "Na pewno? Stuknij jeszcze raz";
-      setTimeout(function () { delete importBtn.dataset.armed; importBtn.textContent = "Wczytaj dane (zastąpi obecne)"; }, 4000);
-      return;
-    }
-    state = { goals: Object.assign(defaultGoals(), d.goals || {}), days: d.days, workouts: d.workouts || {}, weights: d.weights || [],
-      profile: Object.assign({ sex: "m", age: null, h: null, kg: null, act: 1.55, goal: null }, d.profile || {}) };
-    delete importBtn.dataset.armed; importBtn.textContent = "Wczytaj dane (zastąpi obecne)";
-    $("importBox").value = "";
-    save(); fillGoals(); stopEdit(); render(); renderTraining(); renderWeight(); toast("Dane wczytane");
-  });
 
 
   // ---------- Tabs and menu ----------
@@ -1894,6 +1905,124 @@ details.how p { font-size: .85rem; color: var(--muted); margin: 8px 0 0; max-wid
     });
     out.append(grid);
   }
+
+  // ---------- Backup to a file, restore from a file, weekly reminder ----------
+  var BACKUP_KEY = "dziennik-makro-kopia";
+  var framed = (function () { try { return window.top !== window.self; } catch (e) { return true; } })();
+  try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch (e) {}
+
+  function backupMeta() {
+    try { return JSON.parse(localStorage.getItem(BACKUP_KEY)) || {}; } catch (e) { return {}; }
+  }
+  function setBackupMeta(m) {
+    try { localStorage.setItem(BACKUP_KEY, JSON.stringify(Object.assign(backupMeta(), m))); } catch (e) {}
+  }
+  function markBackup() { setBackupMeta({ last: new Date().toISOString(), snooze: null }); updateBackupUI(); }
+  function hasRealData() {
+    return Object.keys(state.days).some(function (k) { return state.days[k].some(function (e) { return !e.demo; }); }) ||
+      Object.keys(state.workouts).some(function (k) { return !state.workouts[k].demo; }) ||
+      state.weights.some(function (w) { return !w.demo; });
+  }
+  function daysSince(iso) { return Math.floor((Date.now() - new Date(iso).getTime()) / 864e5); }
+
+  function updateBackupUI() {
+    var m = backupMeta();
+    var info = $("backupInfo");
+    if (m.last) {
+      var n = daysSince(m.last);
+      info.textContent = "Ostatnia kopia: " + new Date(m.last).toLocaleDateString("pl-PL", { day: "numeric", month: "long" }) +
+        (n === 0 ? " (dziś)" : n === 1 ? " (wczoraj)" : " (" + n + " dni temu)") + ".";
+    } else info.textContent = "Nie masz jeszcze żadnej kopii zapasowej.";
+
+    var due = hasRealData() && (!m.last || daysSince(m.last) >= 7) && !(m.snooze && new Date(m.snooze) > new Date());
+    $("backupRemind").hidden = !due;
+    if (due) {
+      $("remindText").textContent = (m.last ? "Ostatnia kopia zapasowa była " + daysSince(m.last) + " dni temu." : "Nie masz jeszcze kopii zapasowej.") +
+        " Zapisz ją, żeby nie stracić wpisów.";
+    }
+  }
+
+  function backupText() {
+    return JSON.stringify(Object.assign({ app: "dziennik-makro", saved: new Date().toISOString() }, state));
+  }
+  function copyFallback(txt, msg) {
+    var box = $("importBox");
+    $("backupBox").open = true; $("textBackup").open = true;
+    box.value = txt; box.focus(); box.select();
+    try {
+      navigator.clipboard.writeText(txt).then(function () { markBackup(); toast(msg || "Skopiowano dane do schowka"); },
+        function () { toast("Zaznaczyłem dane, skopiuj je ręcznie"); });
+    } catch (e) { toast("Zaznaczyłem dane, skopiuj je ręcznie"); }
+  }
+  function downloadFile(txt, name) {
+    if (framed) { copyFallback(txt, "W podglądzie pliki nie działają, skopiowałem dane jako tekst"); return; }
+    try {
+      var url = URL.createObjectURL(new Blob([txt], { type: "application/json" }));
+      var a = document.createElement("a"); a.href = url; a.download = name;
+      document.body.append(a); a.click(); a.remove();
+      setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+      markBackup(); toast("Zapisano plik " + name);
+    } catch (e) { copyFallback(txt); }
+  }
+  // On a phone this opens the share sheet, so the file can go straight to Google Drive, e-mail or a messenger
+  function saveBackupFile() {
+    var txt = backupText(), name = "dziennik-makro-kopia-" + todayStr() + ".json", file = null;
+    try { file = new File([txt], name, { type: "application/json" }); } catch (e) {}
+    if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
+      navigator.share({ files: [file], title: "Dziennik makro: kopia zapasowa" })
+        .then(function () { markBackup(); toast("Kopia zapisana"); })
+        .catch(function (err) { if (!err || err.name !== "AbortError") downloadFile(txt, name); });
+      return;
+    }
+    downloadFile(txt, name);
+  }
+  $("saveFile").addEventListener("click", saveBackupFile);
+  $("remindSave").addEventListener("click", saveBackupFile);
+  $("remindLater").addEventListener("click", function () {
+    setBackupMeta({ snooze: new Date(Date.now() + 864e5).toISOString() }); updateBackupUI();
+  });
+
+  $("copyData").addEventListener("click", function () { copyFallback(backupText()); });
+
+  // Restoring always asks first and says what is in the backup
+  var pendingImport = null;
+  function askImport(text, source) {
+    var d;
+    try { d = JSON.parse(text); } catch (e) { toast("To nie wygląda na kopię z tej aplikacji"); return; }
+    if (!d || typeof d.days !== "object") { toast("W tej kopii brakuje danych, sprawdź plik"); return; }
+    pendingImport = d;
+    var nDays = Object.keys(d.days).length, nW = Object.keys(d.workouts || {}).length, nKg = (d.weights || []).length;
+    var when = d.saved ? " z " + new Date(d.saved).toLocaleDateString("pl-PL", { day: "numeric", month: "long", year: "numeric" }) : "";
+    $("importSummary").textContent = "Kopia" + when + " (" + source + "): " +
+      nDays + " " + plural(nDays, "dzień", "dni", "dni") + " z posiłkami, " +
+      nW + " " + plural(nW, "trening", "treningi", "treningów") + ", " +
+      nKg + " " + plural(nKg, "pomiar", "pomiary", "pomiarów") + " wagi. Wczytanie zastąpi wszystko, co jest teraz w aplikacji.";
+    $("backupBox").open = true;
+    $("importConfirm").hidden = false;
+    $("importConfirm").scrollIntoView({ behavior: "smooth", block: "center" });
+  }
+  $("importYes").addEventListener("click", function () {
+    var d = pendingImport; if (!d) return;
+    state = { goals: Object.assign(defaultGoals(), d.goals || {}), days: d.days, workouts: d.workouts || {}, weights: d.weights || [],
+      profile: Object.assign({ sex: "m", age: null, h: null, kg: null, act: 1.55, goal: null }, d.profile || {}) };
+    pendingImport = null; $("importConfirm").hidden = true; $("importBox").value = "";
+    save(); markBackup(); fillGoals(); stopEdit(); render(); renderTraining(); renderWeight(); toast("Dane wczytane");
+  });
+  $("importNo").addEventListener("click", function () { pendingImport = null; $("importConfirm").hidden = true; });
+
+  $("loadFileBtn").addEventListener("click", function () { $("loadFile").click(); });
+  $("loadFile").addEventListener("change", function () {
+    var inp = this, f = inp.files && inp.files[0];
+    if (!f) return;
+    var r = new FileReader();
+    r.onload = function () { askImport(String(r.result), "plik " + f.name); inp.value = ""; };
+    r.onerror = function () { toast("Nie udało się odczytać pliku"); inp.value = ""; };
+    r.readAsText(f);
+  });
+  $("importData").addEventListener("click", function () { askImport($("importBox").value, "wklejony tekst"); });
+
+  updateBackupUI();
+  document.addEventListener("visibilitychange", function () { if (!document.hidden) updateBackupUI(); });
 
   fillGoals();
   var startView = "makro";
