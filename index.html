@@ -12,9 +12,19 @@
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}[hidden]{display:none!important}</style>
 <title>Dziennik makro</title>
 <meta name="theme-color" content="#101319">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..700&display=swap">
+<link rel="preload" href="fonts/archivo-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="fonts/archivo-latin-ext.woff2" as="font" type="font/woff2" crossorigin>
+<style>
+@font-face { font-family: "Archivo"; font-style: normal; font-weight: 400 700; font-stretch: 62% 125%; font-display: swap;
+  src: url(fonts/archivo-latin-ext.woff2) format("woff2");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF; }
+@font-face { font-family: "Archivo"; font-style: normal; font-weight: 400 700; font-stretch: 62% 125%; font-display: swap;
+  src: url(fonts/archivo-latin.woff2) format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+</style>
+</head>
+<body>
+
 <style>
 /* Layout: one narrow column: today's totals on top, the add form, then the day's list.
    Look: dark graphite, condensed figures like a training log; one typeface, two widths. */
@@ -291,6 +301,7 @@ details.how p { font-size: .85rem; color: var(--muted); margin: 8px 0 0; max-wid
 .portion { background: var(--surface); border-radius: 6px; padding: 8px 10px; display: flex; flex-direction: column; gap: 2px; font-size: .88rem; }
 .portion strong { font-family: var(--font-display); font-stretch: 78%; }
 .portion.wait { color: var(--muted); }
+.linkbtn.more { align-self: flex-start; text-decoration: none; font-size: .88rem; padding: 2px 0; }
 .ing-toggle { border: 0; background: none; color: var(--accent); font-size: .82rem; font-weight: 700; padding: 6px 0 0; text-align: left; }
 .ing-list { flex-basis: 100%; list-style: none; margin: 0 0 4px 4px; padding: 2px 0 2px 12px; border-left: 2px solid var(--line); display: flex; flex-direction: column; gap: 8px; }
 .ing-list .iname { font-weight: 700; font-size: .9rem; display: flex; justify-content: space-between; gap: 8px; }
@@ -320,6 +331,41 @@ details.how > :not(summary) { margin-top: 10px; }
 .spname { flex: 1; min-width: 0; overflow-wrap: anywhere; font-weight: 700; }
 .linkbtn { border: 0; background: none; padding: 0; color: var(--accent); font-weight: 700; text-decoration: underline; font-size: inherit; }
 .planlabel { margin: -4px 0 0; }
+/* Week summary */
+.wk-head { display: flex; flex-direction: column; gap: 2px; }
+.wk-head .sub { margin: 0; font-size: .88rem; }
+#wkBody { display: flex; flex-direction: column; gap: 22px; }
+.wk-plot { position: relative; height: 170px; }
+.wk-cols { position: absolute; inset: 0; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
+.wk-col { border: 0; background: none; padding: 0; display: grid; grid-template-rows: 18px 1fr 16px; gap: 4px; justify-items: center; min-width: 0; }
+.wk-v { font-size: .72rem; color: var(--muted); align-self: end; }
+.wk-track { width: 100%; max-width: 30px; height: 100%; display: flex; align-items: flex-end; background: var(--field); border-radius: 6px; overflow: hidden; }
+.wk-fill { display: block; width: 100%; border-radius: 6px; min-height: 0; }
+.wk-fill.ok, .wk-legend .ok { background: var(--fg); }
+.wk-fill.over, .wk-legend .over { background: var(--over); }
+.wk-fill.under, .wk-legend .under { background: var(--muted); }
+.wk-d { font-size: .75rem; line-height: 16px; color: var(--muted); white-space: nowrap; }
+.wk-d.today { color: var(--fg); font-weight: 700; }
+.wk-goalbox { position: absolute; left: 0; right: 0; top: 22px; bottom: 20px; pointer-events: none; z-index: 1; }
+.wk-goalbox i { position: absolute; left: 0; right: 0; border-top: 1px dashed var(--muted); }
+.wk-legend .goal { width: 14px; height: 0; border-radius: 0; border-top: 1px dashed var(--muted); background: none; }
+.wk-legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: .8rem; color: var(--muted); margin-top: -10px; }
+.wk-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.wk-legend i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+.wk-macros { display: flex; flex-direction: column; }
+.wk-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px 12px; padding: 10px 0; border-top: 1px solid var(--line); align-items: baseline; }
+.wk-row:first-child { border-top: 0; }
+.wk-l { font-weight: 600; }
+.wk-val { font-family: var(--font-display); font-stretch: 78%; font-size: 1.2rem; font-weight: 600; text-align: right; }
+.wk-val small { font-family: var(--font-body); font-stretch: 100%; font-size: .8rem; color: var(--muted); font-weight: 400; }
+.wk-val.over { color: var(--over); }
+.wk-row .bar { grid-column: 1 / -1; height: 3px; }
+.wk-dd { grid-column: 1 / -1; font-size: .78rem; color: var(--muted); margin-top: -2px; }
+.wk-dd:empty { display: none; }
+.wk-facts { list-style: none; margin: 0; padding: 0; }
+.wk-facts li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0 12px; padding: 12px 0; border-top: 1px solid var(--line); }
+.wk-facts li strong { font-family: var(--font-display); font-stretch: 78%; font-size: 1.2rem; text-align: right; }
+.wk-facts li small { grid-column: 1 / -1; color: var(--muted); font-size: .8rem; }
 /* Records */
 .subtabs.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .subtabs.four button { font-size: .82rem; padding: 9px 2px; }
@@ -422,14 +468,19 @@ details.how > :not(summary) { margin-top: 10px; }
 .mealsum { background: none; border: 0; padding: 0; border-radius: 0; }
 .cmp > div, .prev, .portion, .cheer, .remind { background: var(--field); border: 0; border-radius: 12px; }
 .chip { border: 0; background: var(--field); border-radius: 10px; }
-.suggest, .menu { border-radius: 14px; }
+.menu { border-radius: 14px; }
+/* Suggestions sit in the flow under their field, so they push the form down instead of covering the next field */
+.suggest, .suggest.full { position: static; margin-top: 6px; border-radius: 12px; border: 0; background: var(--field); box-shadow: none; }
+.suggest button:hover, .suggest button:focus-visible { background: var(--field-hi); }
+.exadd { align-items: start; }
+.exadd > button { margin-top: calc(.8rem * 1.45 + 4px); }
+.ing-top { align-items: flex-start; }
+.ing-top > .exnum { margin-top: 13px; }
+.ing-top > .mini { margin-top: 6px; }
 details.card > summary { padding: 2px 0; }
 .badge { border-radius: 6px; }
 .subtabs.four button { font-size: .88rem; }
 </style>
-</head>
-<body>
-
 
 <div class="wrap">
   <header class="top">
@@ -464,9 +515,10 @@ details.card > summary { padding: 2px 0; }
   </div>
 
   <div class="view" id="view-makro">
-  <div class="subtabs" id="makroTabs" role="tablist" aria-label="Dziennik makro">
+  <div class="subtabs three" id="makroTabs" role="tablist" aria-label="Dziennik makro">
     <button type="button" role="tab" data-sub="posilki" aria-selected="true">Posiłki</button>
     <button type="button" role="tab" data-sub="waga" aria-selected="false">Waga</button>
+    <button type="button" role="tab" data-sub="tydzien" aria-selected="false">Tydzień</button>
   </div>
   <div class="view" id="sub-posilki">
   <section class="summary" aria-label="Podsumowanie dnia">
@@ -515,6 +567,26 @@ details.card > summary { padding: 2px 0; }
     <button type="button" class="primary" id="saveGoals">Zapisz cele</button>
   </details>
 
+  </div>
+
+  <div class="view" id="sub-tydzien" hidden>
+    <section class="summary week" aria-labelledby="wkTitle">
+      <div class="wk-head">
+        <h2 id="wkTitle">Ostatnie 7 dni</h2>
+        <p class="sub" id="wkRange"></p>
+      </div>
+      <p class="empty" id="wkEmpty" hidden>W ostatnich 7 dniach nie ma jeszcze wpisów. Dodaj posiłki w zakładce Posiłki, a tu zobaczysz średnie z tygodnia.</p>
+      <div id="wkBody">
+        <div class="kcal-block">
+          <div class="kcal-big"><strong class="num" id="wkKcal">0</strong><span>kcal dziennie średnio</span></div>
+          <div class="kcal-left" id="wkKcalCmp"></div>
+        </div>
+        <div id="wkBars"></div>
+        <div class="wk-legend"><span><i class="ok"></i>w normie</span><span><i class="over"></i>powyżej</span><span><i class="under"></i>poniżej</span><span><i class="goal"></i><span id="wkGoalLeg">cel</span></span><span>Stuknij dzień, żeby go otworzyć.</span></div>
+        <div class="wk-macros" id="wkMacros"></div>
+        <ul class="wk-facts" id="wkFacts"></ul>
+      </div>
+    </section>
   </div>
 
   <div class="view" id="sub-waga" hidden>
@@ -1157,7 +1229,19 @@ details.card > summary { padding: 2px 0; }
         if (n.key === "kcal") kIn = i;
       });
       ingHint(); showPortion();
-      li.append(top, mode, cap, g1, g2, hint);
+      var extra = NUTRIENTS.some(function (n) { return n.row === 2 && num(it[n.key]); });
+      var open2 = !!(it.more || extra);
+      g2.hidden = !open2;
+      var more = document.createElement("button"); more.type = "button"; more.className = "linkbtn more";
+      more.setAttribute("aria-expanded", String(open2));
+      more.textContent = open2 ? "Ukryj cukry, błonnik i sól" : "+ Cukry, błonnik, sól";
+      more.hidden = extra;
+      more.addEventListener("click", function () {
+        it.more = !open2;
+        renderIngs(); updateSum();
+        if (it.more) { var f2 = $("iv-" + it.id + "-s"); if (f2) f2.focus(); }
+      });
+      li.append(top, mode, cap, g1, more, g2, hint);
       if (portion) li.append(portion);
       ol.append(li);
     });
@@ -1890,21 +1974,141 @@ details.card > summary { padding: 2px 0; }
   // ---------- Sub-tabs inside the macro diary ----------
   var SUB_KEY = "dziennik-makro-podzakladka";
   var makroSub = "posilki";
-  try { makroSub = localStorage.getItem(SUB_KEY) === "waga" ? "waga" : "posilki"; } catch (e) {}
+  var MSUBS = ["posilki", "waga", "tydzien"];
+  try { var ms = localStorage.getItem(SUB_KEY); if (MSUBS.indexOf(ms) !== -1) makroSub = ms; } catch (e) {}
   function showSub(v) {
-    makroSub = v === "waga" ? "waga" : "posilki";
-    $("sub-posilki").hidden = makroSub !== "posilki";
-    $("sub-waga").hidden = makroSub !== "waga";
+    makroSub = MSUBS.indexOf(v) !== -1 ? v : "posilki";
+    MSUBS.forEach(function (k) { $("sub-" + k).hidden = makroSub !== k; });
     $("dayNav").hidden = $("view-makro").hidden || makroSub !== "posilki";
     document.querySelectorAll("#makroTabs button").forEach(function (b) {
       b.setAttribute("aria-selected", String(b.dataset.sub === makroSub));
     });
     try { localStorage.setItem(SUB_KEY, makroSub); } catch (e) {}
-    if (makroSub === "waga") renderWeight(); else render();
+    if (makroSub === "waga") renderWeight(); else if (makroSub === "tydzien") renderWeek(); else render();
   }
   document.querySelectorAll("#makroTabs button").forEach(function (b) {
     b.addEventListener("click", function () { showSub(b.dataset.sub); });
   });
+
+
+  // ---------- Week: the last 7 days at a glance, compared with the 7 days before ----------
+  function dayTotals(k) {
+    var t = { kcal: 0, n: 0 };
+    NUTRIENTS.forEach(function (n) { t[n.key] = 0; });
+    (state.days[k] || []).forEach(function (e) {
+      t.n++; t.kcal += val(e, "kcal");
+      NUTRIENTS.forEach(function (n) { t[n.key] += val(e, n.key); });
+    });
+    return t;
+  }
+  function weekStats(end) {
+    var days = [], logged = [], avg = { kcal: 0 };
+    NUTRIENTS.forEach(function (n) { avg[n.key] = 0; });
+    for (var i = 6; i >= 0; i--) {
+      var k = shiftDay(end, -i), t = dayTotals(k);
+      t.k = k; days.push(t);
+      if (t.n) logged.push(t);
+    }
+    logged.forEach(function (t) {
+      avg.kcal += t.kcal / logged.length;
+      NUTRIENTS.forEach(function (n) { avg[n.key] += t[n.key] / logged.length; });
+    });
+    var tr = { n: 0, kcal: 0, min: 0 };
+    days.forEach(function (t) { var w = state.workouts[t.k]; if (w) { tr.n++; tr.kcal += w.kcal || 0; tr.min += w.min || 0; } });
+    return { days: days, logged: logged.length, avg: avg, tr: tr };
+  }
+  function kcalState(v, goal) { return !v ? "none" : v > goal * 1.1 ? "over" : v < goal * 0.9 ? "under" : "ok"; }
+  function signed(n, unit) { n = Math.round(n); return (n > 0 ? "+" : n < 0 ? "−" : "±") + Math.abs(n) + (unit || ""); }
+
+  function renderWeek() {
+    var end = todayStr(), w = weekStats(end), prev = weekStats(shiftDay(end, -7)), g = state.goals;
+    var first = parseDay(w.days[0].k), last = parseDay(end);
+    var range = first.getMonth() === last.getMonth()
+      ? first.getDate() + "–" + last.toLocaleDateString("pl-PL", { day: "numeric", month: "long" })
+      : first.toLocaleDateString("pl-PL", { day: "numeric", month: "short" }) + " – " + last.toLocaleDateString("pl-PL", { day: "numeric", month: "short" });
+    $("wkRange").textContent = range + ". Wpisy z " + w.logged + " " + plural(w.logged, "dnia", "dni", "dni") + " na 7.";
+    var has = w.logged > 0;
+    $("wkEmpty").hidden = has; $("wkBody").hidden = !has;
+    if (!has) return;
+
+    $("wkKcal").textContent = Math.round(w.avg.kcal);
+    var dk = Math.round(w.avg.kcal - g.kcal);
+    var cmp = "Cel " + g.kcal + " kcal, " + (Math.abs(dk) <= g.kcal * 0.1 ? "średnio w normie" : dk > 0 ? "średnio " + dk + " kcal powyżej" : "średnio " + Math.abs(dk) + " kcal poniżej") + ".";
+    if (prev.logged) cmp += " Tydzień wcześniej " + Math.round(prev.avg.kcal) + " kcal.";
+    $("wkKcalCmp").textContent = cmp;
+
+    // One bar per day, goal as a dashed line
+    var bars = $("wkBars"); bars.innerHTML = "";
+    var top = Math.max(g.kcal * 1.3, Math.max.apply(null, w.days.map(function (t) { return t.kcal; })));
+    var gl = document.createElement("div"); gl.className = "wk-goalbox";
+    var gline = document.createElement("i"); gline.style.bottom = (g.kcal / top * 100) + "%"; gl.append(gline);
+    $("wkGoalLeg").textContent = "cel " + g.kcal + " kcal";
+    var cols = document.createElement("div"); cols.className = "wk-cols";
+    w.days.forEach(function (t) {
+      var b = document.createElement("button"); b.type = "button"; b.className = "wk-col";
+      var st = kcalState(t.kcal, g.kcal);
+      var d = parseDay(t.k);
+      b.setAttribute("aria-label", d.toLocaleDateString("pl-PL", { weekday: "long", day: "numeric", month: "long" }) + ": " + (t.n ? Math.round(t.kcal) + " kcal" : "brak wpisów"));
+      var v = document.createElement("span"); v.className = "wk-v num"; v.textContent = t.n ? Math.round(t.kcal) : "–";
+      var track = document.createElement("span"); track.className = "wk-track";
+      var fill = document.createElement("i"); fill.className = "wk-fill " + st; fill.style.height = (t.kcal / top * 100) + "%";
+      track.append(fill);
+      var lab = document.createElement("span"); lab.className = "wk-d";
+      lab.textContent = d.toLocaleDateString("pl-PL", { weekday: "short" }).replace(".", "") + " " + d.getDate();
+      if (t.k === end) lab.classList.add("today");
+      b.append(v, track, lab);
+      b.addEventListener("click", function () { day = t.k; stopEdit(); showSub("posilki"); window.scrollTo(0, 0); });
+      cols.append(b);
+    });
+    var plot = document.createElement("div"); plot.className = "wk-plot";
+    plot.append(gl, cols);
+    bars.append(plot);
+
+    // Average of each nutrient against the daily goal
+    var mac = $("wkMacros"); mac.innerHTML = "";
+    NUTRIENTS.forEach(function (n) {
+      var a = w.avg[n.key], goal = g[n.key];
+      var row = document.createElement("div"); row.className = "wk-row";
+      var l = document.createElement("span"); l.className = "wk-l"; l.append(dot(n), n.label);
+      var vv = document.createElement("span"); vv.className = "wk-val num";
+      vv.append(fmt(a) + " g ");
+      var sm = document.createElement("small"); sm.textContent = "/ " + fmt(goal) + " g";
+      vv.append(sm);
+      var bar = document.createElement("div"); bar.className = "bar" + (n.white ? " white" : "");
+      var bi = document.createElement("i"); bar.append(bi); setBar(bi, a, goal);
+      bi.style.background = "var(" + n.color + ")";
+      if (n.limit && a > goal) vv.classList.add("over");
+      var dd = document.createElement("span"); dd.className = "wk-dd num";
+      if (prev.logged) {
+        var diff = a - prev.avg[n.key];
+        dd.textContent = (Math.abs(diff) < 0.5 ? "bez zmian" : signed(diff, " g")) + " vs poprz.";
+      }
+      row.append(l, vv, bar, dd);
+      mac.append(row);
+    });
+
+    // A few plain facts
+    var facts = $("wkFacts"); facts.innerHTML = "";
+    function fact(label, value, note) {
+      var li = document.createElement("li");
+      var a = document.createElement("span"); a.textContent = label;
+      var b = document.createElement("strong"); b.className = "num"; b.textContent = value;
+      li.append(a, b);
+      if (note) { var s = document.createElement("small"); s.textContent = note; li.append(s); }
+      facts.append(li);
+    }
+    var okDays = w.days.filter(function (t) { return kcalState(t.kcal, g.kcal) === "ok"; }).length;
+    var pDays = w.days.filter(function (t) { return t.n && t.p >= g.p * 0.95; }).length;
+    fact("Dni w normie kalorii", okDays + " z " + w.logged, "± 10% od celu");
+    fact("Dni z białkiem w celu", pDays + " z " + w.logged);
+    fact("Treningi", String(w.tr.n), w.tr.n ? (w.tr.kcal ? "spalone " + big(w.tr.kcal) + " kcal" : "") + (w.tr.min ? (w.tr.kcal ? ", " : "") + w.tr.min + " min" : "") : "");
+    var inWeek = state.weights.filter(function (x) { return x.d >= w.days[0].k && x.d <= end; });
+    var before = state.weights.filter(function (x) { return x.d < w.days[0].k; });
+    if (inWeek.length) {
+      var lastW = inWeek[inWeek.length - 1].kg, base = before.length ? before[before.length - 1].kg : inWeek[0].kg;
+      fact("Waga", kgText(lastW), inWeek.length > 1 || before.length ? signedKg(lastW - base) + " w tym tygodniu" : "jeden pomiar");
+    } else fact("Waga", "–", "brak pomiaru w tym tygodniu");
+  }
 
   // ---------- Weight log ----------
   function kgText(n) { return String(r1(n)).replace(".", ",") + " kg"; }
