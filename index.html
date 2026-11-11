@@ -469,6 +469,12 @@ details.how > :not(summary) { margin-top: 10px; }
 .cmp > div, .prev, .portion, .cheer, .remind { background: var(--field); border: 0; border-radius: 12px; }
 .chip { border: 0; background: var(--field); border-radius: 10px; }
 .menu { border-radius: 14px; }
+/* iPhone Safari gives date fields a fixed native width; make them fit their column like other fields */
+input[type="date"] { -webkit-appearance: none; appearance: none; display: block; min-width: 0; max-width: 100%; height: calc(1rem * 1.45 + 24px); text-align: left; }
+input[type="date"]::-webkit-date-and-time-value { text-align: left; margin: 0; }
+input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(.8); }
+/* The first section under the tabs needs no divider: the tabs already draw one */
+.view > .card:first-child { border-top: 0; padding-top: 4px; }
 /* Suggestions sit in the flow under their field, so they push the form down instead of covering the next field */
 .suggest, .suggest.full { position: static; margin-top: 6px; border-radius: 12px; border: 0; background: var(--field); box-shadow: none; }
 .suggest button:hover, .suggest button:focus-visible { background: var(--field-hi); }
