@@ -491,10 +491,11 @@ details.how > :not(summary) { margin-top: 10px; }
     <input type="file" id="loadFile" accept=".json,application/json,text/plain" hidden>
     <div class="confirm" id="importConfirm" hidden>
       <p id="importSummary"></p>
-      <div class="row">
-        <button type="button" class="primary" id="importYes">Wczytaj</button>
-        <button type="button" class="ghost" id="importNo">Anuluj</button>
-      </div>
+      <button type="button" class="primary" id="importMerge">Połącz z obecnymi</button>
+      <p class="sub">Dopisze z kopii to, czego brakuje w aplikacji. Niczego nie kasuje.</p>
+      <button type="button" class="ghost danger" id="importYes">Zastąp wszystko</button>
+      <p class="sub">W aplikacji zostanie tylko to, co jest w kopii. Wpisy spoza kopii znikną.</p>
+      <button type="button" class="ghost" id="importNo">Anuluj</button>
     </div>
     <details class="how" id="textBackup">
       <summary>Kopia jako tekst (kopiuj i wklej)</summary>
@@ -1996,7 +1997,7 @@ details.how > :not(summary) { margin-top: 10px; }
     $("importSummary").textContent = "Kopia" + when + " (" + source + "): " +
       nDays + " " + plural(nDays, "dzień", "dni", "dni") + " z posiłkami, " +
       nW + " " + plural(nW, "trening", "treningi", "treningów") + ", " +
-      nKg + " " + plural(nKg, "pomiar", "pomiary", "pomiarów") + " wagi. Wczytanie zastąpi wszystko, co jest teraz w aplikacji.";
+      nKg + " " + plural(nKg, "pomiar", "pomiary", "pomiarów") + " wagi. Co zrobić z tą kopią?";
     $("backupBox").open = true;
     $("importConfirm").hidden = false;
     $("importConfirm").scrollIntoView({ behavior: "smooth", block: "center" });
@@ -2007,6 +2008,58 @@ details.how > :not(summary) { margin-top: 10px; }
       profile: Object.assign({ sex: "m", age: null, h: null, kg: null, act: 1.55, goal: null }, d.profile || {}) };
     pendingImport = null; $("importConfirm").hidden = true; $("importBox").value = "";
     save(); markBackup(); fillGoals(); stopEdit(); render(); renderTraining(); renderWeight(); toast("Dane wczytane");
+  });
+  // Merge: add from the backup only what is missing; nothing in the app is removed or overwritten
+  function mealSig(e) { return [fold(e.name), Math.round(val(e, "kcal")), r1(val(e, "p")), r1(val(e, "f")), r1(val(e, "c"))].join("|"); }
+  function exSig(x) { return fold(x.name) + "|" + JSON.stringify(x.sets || []); }
+  function mergeBackup(d) {
+    var added = { meals: 0, workouts: 0, weights: 0 };
+    Object.keys(d.days || {}).forEach(function (k) {
+      var cur = state.days[k] || [];
+      var ids = {}, sigs = {};
+      cur.forEach(function (e) { ids[e.id] = 1; sigs[mealSig(e)] = 1; });
+      (d.days[k] || []).forEach(function (e) {
+        if (e.demo || ids[e.id] || sigs[mealSig(e)]) return;
+        cur.push(e); ids[e.id] = 1; sigs[mealSig(e)] = 1; added.meals++;
+      });
+      if (cur.length) state.days[k] = cur;
+    });
+    Object.keys(d.workouts || {}).forEach(function (k) {
+      var b = d.workouts[k];
+      if (!b || b.demo) return;
+      var w = state.workouts[k];
+      if (!w || w.demo) { state.workouts[k] = b; added.workouts++; return; }
+      var ids = {}, sigs = {}, n = 0;
+      w.ex.forEach(function (x) { ids[x.id] = 1; sigs[exSig(x)] = 1; });
+      (b.ex || []).forEach(function (x) {
+        if (ids[x.id] || sigs[exSig(x)]) return;
+        w.ex.push(x); ids[x.id] = 1; sigs[exSig(x)] = 1; n++;
+      });
+      if (!w.kcal && b.kcal) w.kcal = b.kcal;
+      if (!w.min && b.min) w.min = b.min;
+      if (n) added.workouts++;
+    });
+    var have = {};
+    state.weights.forEach(function (w) { if (!w.demo) have[w.d] = 1; });
+    (d.weights || []).forEach(function (w) {
+      if (w.demo || have[w.d]) return;
+      state.weights = state.weights.filter(function (x) { return x.d !== w.d; });
+      state.weights.push({ d: w.d, kg: w.kg }); have[w.d] = 1; added.weights++;
+    });
+    state.weights.sort(function (a, b) { return a.d < b.d ? -1 : 1; });
+    Object.keys(d.profile || {}).forEach(function (k) {
+      if ((state.profile[k] === null || state.profile[k] === undefined) && d.profile[k] !== null) state.profile[k] = d.profile[k];
+    });
+    return added;
+  }
+  $("importMerge").addEventListener("click", function () {
+    var d = pendingImport; if (!d) return;
+    var a = mergeBackup(d);
+    pendingImport = null; $("importConfirm").hidden = true; $("importBox").value = "";
+    save(); markBackup(); fillGoals(); stopEdit(); render(); renderTraining(); renderWeight();
+    toast(a.meals + a.workouts + a.weights
+      ? "Dopisano: " + a.meals + " posił., " + a.workouts + " tren., " + a.weights + " pom. wagi"
+      : "Wszystko z kopii już jest w aplikacji");
   });
   $("importNo").addEventListener("click", function () { pendingImport = null; $("importConfirm").hidden = true; });
 
