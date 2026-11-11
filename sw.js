@@ -1,5 +1,5 @@
 // Keeps the app working offline: serve saved files, refresh them in the background.
-const CACHE = "makro-953c55d4";
+const CACHE = "makro-f1a486c1";
 const FILES = ["./", "index.html", "manifest.webmanifest", "icon-192.png", "icon-512.png", "apple-touch-icon.png"];
 self.addEventListener("install", e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES))); self.skipWaiting(); });
 self.addEventListener("activate", e => { e.waitUntil(self.clients.claim()); });

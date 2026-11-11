@@ -296,6 +296,18 @@ details.how > summary::-webkit-details-marker { display: none; }
 details.card > :not(summary) { margin-top: 12px; }
 details.card > button, details.how > button { width: 100%; }
 details.how > :not(summary) { margin-top: 10px; }
+/* Training sub-tabs and SPLIT plans */
+.subtabs.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.chip { border: 1px solid var(--line); background: var(--bg); border-radius: 999px; padding: 8px 12px; font-size: .88rem; font-weight: 700; max-width: 100%; overflow-wrap: anywhere; text-align: left; }
+.chip:disabled { opacity: .45; cursor: default; }
+.splitpick { display: flex; flex-direction: column; gap: 6px; }
+.splitex { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.splitex li { display: flex; align-items: center; gap: 6px; }
+.splitex li.sub { display: block; }
+.spname { flex: 1; min-width: 0; overflow-wrap: anywhere; font-weight: 700; }
+.linkbtn { border: 0; background: none; padding: 0; color: var(--accent); font-weight: 700; text-decoration: underline; font-size: inherit; }
+.planlabel { margin: -4px 0 0; }
 .toast {
   position: fixed; left: 50%; transform: translateX(-50%);
   bottom: calc(20px + env(safe-area-inset-bottom, 0px));
@@ -340,7 +352,7 @@ details.how > :not(summary) { margin-top: 10px; }
   </div>
 
   <div class="view" id="view-makro">
-  <div class="subtabs" role="tablist" aria-label="Dziennik makro">
+  <div class="subtabs" id="makroTabs" role="tablist" aria-label="Dziennik makro">
     <button type="button" role="tab" data-sub="posilki" aria-selected="true">Posiłki</button>
     <button type="button" role="tab" data-sub="waga" aria-selected="false">Waga</button>
   </div>
@@ -452,6 +464,12 @@ details.how > :not(summary) { margin-top: 10px; }
   </div>
 
   <div class="view" id="view-trening" hidden>
+    <div class="subtabs three" id="trainTabs" role="tablist" aria-label="Trening">
+      <button type="button" role="tab" data-tsub="kal" aria-selected="true">Kalendarz</button>
+      <button type="button" role="tab" data-tsub="stat" aria-selected="false">Statystyki</button>
+      <button type="button" role="tab" data-tsub="split" aria-selected="false">SPLIT</button>
+    </div>
+    <div class="view" id="tsub-kal">
     <section class="card" aria-labelledby="calTitle">
       <div class="calhead">
         <button class="iconbtn" id="prevMonth" type="button" aria-label="Poprzedni miesiąc">‹</button>
@@ -464,6 +482,8 @@ details.how > :not(summary) { margin-top: 10px; }
       <p class="sub" id="monthStat" style="margin:0"></p>
     </section>
     <section class="card" id="wDay" aria-live="polite"></section>
+    </div>
+    <div class="view" id="tsub-stat" hidden>
     <section class="card" id="progCard" aria-labelledby="progTitle">
       <h2 id="progTitle">Postępy w ćwiczeniu</h2>
       <p class="empty" id="progEmpty" style="margin:0" hidden>Tu pojawi się porównanie, gdy wpiszesz serie przy jakimś ćwiczeniu.</p>
@@ -480,6 +500,26 @@ details.how > :not(summary) { margin-top: 10px; }
         <ul class="hist" id="progHist"></ul>
       </div>
     </section>
+    </div>
+    <div class="view" id="tsub-split" hidden>
+      <section class="card" aria-labelledby="splitTitle">
+        <h2 id="splitTitle">Moje plany treningowe</h2>
+        <p class="sub" style="margin:0">Zapisz stałe plany, np. Push, Pull, Upper, Lower, i dopisz do nich ćwiczenia w kolejności. W kalendarzu wstawisz cały plan jednym stuknięciem i zostanie Ci tylko wpisanie serii.</p>
+        <div class="exadd">
+          <div class="field">
+            <label for="splitNew">Nowy plan</label>
+            <input id="splitNew" maxlength="40" placeholder="np. Push" enterkeyhint="done" autocomplete="off">
+          </div>
+          <button type="button" class="primary" id="splitCreate">Utwórz</button>
+        </div>
+        <div id="splitIdeasWrap">
+          <div class="sub" style="margin-bottom:6px">Szybki start:</div>
+          <div class="chips" id="splitIdeas"></div>
+        </div>
+        <p class="empty" id="splitEmpty" style="margin:0">Nie masz jeszcze żadnego planu.</p>
+        <ul class="exlist" id="splitList"></ul>
+      </section>
+    </div>
   </div>
 
   <details class="card" id="backupBox">
@@ -608,6 +648,7 @@ details.how > :not(summary) { margin-top: 10px; }
   var state = load();
   state.goals = Object.assign(defaultGoals(), state.goals || {});
   if (!state.workouts) state.workouts = demoWorkouts();
+  if (!state.splits) state.splits = [];
   if (!state.weights) state.weights = demoWeights();
   state.profile = Object.assign({ sex: "m", age: null, h: null, kg: null, act: 1.55, goal: null }, state.profile || {});
   var day = todayStr();
@@ -1043,7 +1084,7 @@ details.how > :not(summary) { margin-top: 10px; }
       if (b.dataset.view === v) b.setAttribute("aria-current", "page"); else b.removeAttribute("aria-current");
     });
     try { localStorage.setItem(VIEW_KEY, v); } catch (e) {}
-    if (v === "trening") renderTraining(); else showSub(makroSub);
+    if (v === "trening") showTSub(treningSub); else showSub(makroSub);
   }
   menuBtn.addEventListener("click", function (ev) { ev.stopPropagation(); setMenu(menu.hidden); });
   document.querySelectorAll(".menu-item").forEach(function (b) {
@@ -1096,6 +1137,7 @@ details.how > :not(summary) { margin-top: 10px; }
     renderCalendar();
     renderWorkoutDay();
     renderProgress();
+    renderSplits();
     $("demoBar").hidden = !hasDemo();
   }
 
@@ -1160,6 +1202,10 @@ details.how > :not(summary) { margin-top: 10px; }
     var title = parseDay(selDay).toLocaleDateString("pl-PL", { weekday: "long", day: "numeric", month: "long" });
     h.textContent = title.charAt(0).toUpperCase() + title.slice(1);
     box.append(h);
+    if (w && w.split) {
+      var pl = document.createElement("p"); pl.className = "sub planlabel"; pl.textContent = "Plan: " + w.split;
+      box.append(pl);
+    }
 
     if (!w) {
       var p = document.createElement("p"); p.className = "empty"; p.style.margin = "0";
@@ -1171,7 +1217,7 @@ details.how > :not(summary) { margin-top: 10px; }
         save(); renderCalendar(); renderWorkoutDay();
         $("exName").focus();
       });
-      box.append(p, add);
+      box.append(p, add, splitPicker(null));
       return;
     }
 
@@ -1202,7 +1248,7 @@ details.how > :not(summary) { margin-top: 10px; }
     w.ex.forEach(function (ex, idx) { ol.append(exCard(w, ex, idx)); });
     scheduleProgress();
 
-    box.append(il, lv, g2, eh, ol, exAddRow(w),
+    box.append(il, lv, g2, eh, ol, splitPicker(w), exAddRow(w),
       armedButton("Usuń trening z tego dnia", "Na pewno? Stuknij jeszcze raz", "ghost danger", function () {
         delete state.workouts[selDay];
         save(); renderCalendar(); renderWorkoutDay(); toast("Trening usunięty");
@@ -1308,7 +1354,9 @@ details.how > :not(summary) { margin-top: 10px; }
     addSet.textContent = "+ Dodaj serię";
     addSet.addEventListener("click", function () {
       var last = ex.sets[ex.sets.length - 1];
-      ex.sets.push(last ? { r: last.r, kg: last.kg } : { r: 0, kg: 0 });
+      var prevS = last ? null : sessionsFor(ex.name).filter(function (x) { return x.day < selDay; }).pop();
+      var ref = last || (prevS && prevS.sets[0]);
+      ex.sets.push(ref ? { r: ref.r, kg: ref.kg } : { r: 0, kg: 0 });
       save(); renderWorkoutDay();
       // focus the new set's reps field in this exercise
       var card = $("exn-" + ex.id).closest(".ex");
@@ -1318,7 +1366,7 @@ details.how > :not(summary) { margin-top: 10px; }
     var see = document.createElement("button"); see.type = "button"; see.className = "ghost";
     see.textContent = "Postępy";
     see.addEventListener("click", function () {
-      progName = ex.name; progPick = null; renderProgress();
+      progName = ex.name; progPick = null; showTSub("stat");
       $("progCard").scrollIntoView({ behavior: "smooth", block: "start" });
     });
     row.append(addSet, see, armedButton("Usuń ćwiczenie", "Na pewno?", "ghost danger", function () {
@@ -1626,13 +1674,13 @@ details.how > :not(summary) { margin-top: 10px; }
     $("sub-posilki").hidden = makroSub !== "posilki";
     $("sub-waga").hidden = makroSub !== "waga";
     $("dayNav").hidden = $("view-makro").hidden || makroSub !== "posilki";
-    document.querySelectorAll(".subtabs button").forEach(function (b) {
+    document.querySelectorAll("#makroTabs button").forEach(function (b) {
       b.setAttribute("aria-selected", String(b.dataset.sub === makroSub));
     });
     try { localStorage.setItem(SUB_KEY, makroSub); } catch (e) {}
     if (makroSub === "waga") renderWeight(); else render();
   }
-  document.querySelectorAll(".subtabs button").forEach(function (b) {
+  document.querySelectorAll("#makroTabs button").forEach(function (b) {
     b.addEventListener("click", function () { showSub(b.dataset.sub); });
   });
 
@@ -1922,7 +1970,7 @@ details.how > :not(summary) { margin-top: 10px; }
   function hasRealData() {
     return Object.keys(state.days).some(function (k) { return state.days[k].some(function (e) { return !e.demo; }); }) ||
       Object.keys(state.workouts).some(function (k) { return !state.workouts[k].demo; }) ||
-      state.weights.some(function (w) { return !w.demo; });
+      state.weights.some(function (w) { return !w.demo; }) || state.splits.length > 0;
   }
   function daysSince(iso) { return Math.floor((Date.now() - new Date(iso).getTime()) / 864e5); }
 
@@ -2004,7 +2052,7 @@ details.how > :not(summary) { margin-top: 10px; }
   }
   $("importYes").addEventListener("click", function () {
     var d = pendingImport; if (!d) return;
-    state = { goals: Object.assign(defaultGoals(), d.goals || {}), days: d.days, workouts: d.workouts || {}, weights: d.weights || [],
+    state = { goals: Object.assign(defaultGoals(), d.goals || {}), days: d.days, workouts: d.workouts || {}, weights: d.weights || [], splits: d.splits || [],
       profile: Object.assign({ sex: "m", age: null, h: null, kg: null, act: 1.55, goal: null }, d.profile || {}) };
     pendingImport = null; $("importConfirm").hidden = true; $("importBox").value = "";
     save(); markBackup(); fillGoals(); stopEdit(); render(); renderTraining(); renderWeight(); toast("Dane wczytane");
@@ -2047,6 +2095,11 @@ details.how > :not(summary) { margin-top: 10px; }
       state.weights.push({ d: w.d, kg: w.kg }); have[w.d] = 1; added.weights++;
     });
     state.weights.sort(function (a, b) { return a.d < b.d ? -1 : 1; });
+    (d.splits || []).forEach(function (sp) {
+      var cur = state.splits.find(function (x) { return fold(x.name) === fold(sp.name); });
+      if (!cur) { state.splits.push(sp); return; }
+      sp.ex.forEach(function (n) { if (!cur.ex.some(function (x) { return fold(x) === fold(n); })) cur.ex.push(n); });
+    });
     Object.keys(d.profile || {}).forEach(function (k) {
       if ((state.profile[k] === null || state.profile[k] === undefined) && d.profile[k] !== null) state.profile[k] = d.profile[k];
     });
@@ -2076,6 +2129,207 @@ details.how > :not(summary) { margin-top: 10px; }
 
   updateBackupUI();
   document.addEventListener("visibilitychange", function () { if (!document.hidden) updateBackupUI(); });
+
+  // ---------- Training sub-tabs: Kalendarz / Statystyki / SPLIT ----------
+  var TSUB_KEY = "dziennik-makro-trening-podzakladka";
+  var TSUBS = ["kal", "stat", "split"];
+  var treningSub = "kal";
+  try { var ts = localStorage.getItem(TSUB_KEY); if (TSUBS.indexOf(ts) !== -1) treningSub = ts; } catch (e) {}
+  function showTSub(v) {
+    treningSub = TSUBS.indexOf(v) !== -1 ? v : "kal";
+    TSUBS.forEach(function (k) { $("tsub-" + k).hidden = k !== treningSub; });
+    document.querySelectorAll("#trainTabs button").forEach(function (b) {
+      b.setAttribute("aria-selected", String(b.dataset.tsub === treningSub));
+    });
+    try { localStorage.setItem(TSUB_KEY, treningSub); } catch (e) {}
+    renderTraining();
+  }
+  document.querySelectorAll("#trainTabs button").forEach(function (b) {
+    b.addEventListener("click", function () { showTSub(b.dataset.tsub); window.scrollTo(0, 0); });
+  });
+
+  // ---------- SPLIT: saved training plans, each a named list of exercise names ----------
+  var SPLIT_IDEAS = ["Push", "Pull", "Nogi", "Upper", "Lower", "FBW"];
+  var openSplit = {};
+
+  function exWord(n) { return n + " " + plural(n, "ćwiczenie", "ćwiczenia", "ćwiczeń"); }
+  // Every exercise name known to the app: from workouts (most frequent first) and from plans
+  function allExerciseNames() {
+    var seen = {}, out = [];
+    pastExercises().forEach(function (s) { var k = fold(s.name); if (!seen[k]) { seen[k] = 1; out.push({ name: s.name, meta: s.n + "× na treningu" }); } });
+    state.splits.forEach(function (sp) {
+      sp.ex.forEach(function (n) { var k = fold(n); if (k && !seen[k]) { seen[k] = 1; out.push({ name: n, meta: "z planu " + sp.name }); } });
+    });
+    return out;
+  }
+
+  function nameSuggest(input, list, getHits, onPick) {
+    function hide() { list.hidden = true; input.setAttribute("aria-expanded", "false"); }
+    function show() {
+      var q = fold(input.value), hits = getHits().filter(function (h) { return !q || fold(h.name).indexOf(q) !== -1; }).slice(0, 6);
+      list.innerHTML = "";
+      if (!hits.length) { hide(); return; }
+      var head = document.createElement("li"); head.className = "head"; head.textContent = q ? "Pasujące ćwiczenia" : "Twoje ćwiczenia";
+      list.append(head);
+      hits.forEach(function (h) {
+        var li = document.createElement("li");
+        var b = document.createElement("button"); b.type = "button";
+        var nm = document.createElement("div"); nm.className = "sname"; nm.textContent = h.name;
+        var mt = document.createElement("div"); mt.className = "smeta"; mt.textContent = h.meta;
+        b.append(nm, mt);
+        b.addEventListener("pointerdown", function (ev) { ev.preventDefault(); });
+        b.addEventListener("click", function () { hide(); onPick(h.name); });
+        li.append(b); list.append(li);
+      });
+      list.hidden = false; input.setAttribute("aria-expanded", "true");
+    }
+    input.setAttribute("role", "combobox"); input.setAttribute("aria-autocomplete", "list");
+    input.setAttribute("aria-expanded", "false"); input.setAttribute("aria-controls", list.id);
+    input.addEventListener("input", show);
+    input.addEventListener("focus", show);
+    input.addEventListener("blur", function () { setTimeout(hide, 150); });
+    input.addEventListener("keydown", function (ev) { if (ev.key === "Escape") hide(); });
+  }
+
+  function createSplit(name) {
+    name = (name || "").trim();
+    if (!name) { toast("Wpisz nazwę planu, np. Push"); $("splitNew").focus(); return; }
+    if (state.splits.some(function (sp) { return fold(sp.name) === fold(name); })) { toast("Plan „" + name + "” już istnieje"); return; }
+    var sp = { id: uid(), name: name, ex: [] };
+    state.splits.push(sp); openSplit[sp.id] = true;
+    $("splitNew").value = "";
+    save(); renderSplits();
+    var inp = $("spadd-" + sp.id); if (inp) inp.focus();
+    toast("Utworzono plan " + name);
+  }
+  $("splitCreate").addEventListener("click", function () { createSplit($("splitNew").value); });
+  $("splitNew").addEventListener("keydown", function (ev) { if (ev.key === "Enter") { ev.preventDefault(); createSplit($("splitNew").value); } });
+
+  function renderSplits() {
+    var ideas = $("splitIdeas"); ideas.innerHTML = "";
+    SPLIT_IDEAS.filter(function (n) { return !state.splits.some(function (sp) { return fold(sp.name) === fold(n); }); })
+      .forEach(function (n) {
+        var b = document.createElement("button"); b.type = "button"; b.className = "chip"; b.textContent = "+ " + n;
+        b.addEventListener("click", function () { createSplit(n); });
+        ideas.append(b);
+      });
+    $("splitIdeasWrap").hidden = !ideas.children.length;
+
+    var box = $("splitList"); box.innerHTML = "";
+    $("splitEmpty").hidden = !!state.splits.length;
+    state.splits.forEach(function (sp, si) {
+      var li = document.createElement("li"); li.className = "ex";
+      var open = !!openSplit[sp.id];
+      var head = document.createElement("div"); head.className = "exhead";
+      var nb = document.createElement("button"); nb.type = "button"; nb.className = "exname"; nb.setAttribute("aria-expanded", String(open));
+      var nt = document.createElement("span"); nt.className = "extitle"; nt.textContent = sp.name;
+      var ns = document.createElement("small");
+      ns.textContent = sp.ex.length ? exWord(sp.ex.length) + ": " + sp.ex.join(", ") : "bez ćwiczeń, stuknij, żeby dopisać";
+      nb.append(nt, ns);
+      nb.addEventListener("click", function () { openSplit[sp.id] = !open; renderSplits(); });
+      head.append(nb,
+        miniBtn("↑", "Przesuń plan wyżej", si === 0, function () { var t = state.splits[si - 1]; state.splits[si - 1] = sp; state.splits[si] = t; save(); renderSplits(); }),
+        miniBtn("↓", "Przesuń plan niżej", si === state.splits.length - 1, function () { var t = state.splits[si + 1]; state.splits[si + 1] = sp; state.splits[si] = t; save(); renderSplits(); }));
+      li.append(head);
+      if (open) li.append(splitBody(sp));
+      box.append(li);
+    });
+  }
+
+  function splitBody(sp) {
+    var body = document.createElement("div"); body.className = "exbody";
+
+    var nf = document.createElement("div"); nf.className = "field";
+    var nl = document.createElement("label"); nl.htmlFor = "spn-" + sp.id; nl.textContent = "Nazwa planu";
+    var ni = document.createElement("input"); ni.id = "spn-" + sp.id; ni.value = sp.name; ni.maxLength = 40;
+    ni.addEventListener("change", function () { sp.name = ni.value.trim() || sp.name; save(); renderSplits(); });
+    nf.append(nl, ni);
+    body.append(nf);
+
+    var ol = document.createElement("ol"); ol.className = "splitex";
+    if (!sp.ex.length) {
+      var e0 = document.createElement("li"); e0.className = "sub"; e0.textContent = "Dopisz ćwiczenia w kolejności, w jakiej je robisz.";
+      ol.append(e0);
+    }
+    sp.ex.forEach(function (name, i) {
+      var li = document.createElement("li");
+      var n = document.createElement("span"); n.className = "exnum num"; n.textContent = i + 1;
+      var t = document.createElement("span"); t.className = "spname"; t.textContent = name;
+      li.append(n, t,
+        miniBtn("↑", "Przesuń " + name + " wyżej", i === 0, function () { sp.ex.splice(i - 1, 0, sp.ex.splice(i, 1)[0]); save(); renderSplits(); }),
+        miniBtn("↓", "Przesuń " + name + " niżej", i === sp.ex.length - 1, function () { sp.ex.splice(i + 1, 0, sp.ex.splice(i, 1)[0]); save(); renderSplits(); }),
+        miniBtn("✕", "Usuń " + name + " z planu", false, function () { sp.ex.splice(i, 1); save(); renderSplits(); }));
+      ol.append(li);
+    });
+    body.append(ol);
+
+    var wrap = document.createElement("div"); wrap.className = "exadd";
+    var f = document.createElement("div"); f.className = "field";
+    var l = document.createElement("label"); l.htmlFor = "spadd-" + sp.id; l.textContent = "Dodaj ćwiczenie do planu";
+    var inp = document.createElement("input"); inp.id = "spadd-" + sp.id; inp.maxLength = 60; inp.autocomplete = "off";
+    inp.placeholder = "np. Wyciskanie na ławce"; inp.setAttribute("enterkeyhint", "done");
+    var sl = document.createElement("ul"); sl.className = "suggest full"; sl.id = "spsug-" + sp.id; sl.hidden = true;
+    f.append(l, inp, sl);
+    var btn = document.createElement("button"); btn.type = "button"; btn.className = "primary"; btn.textContent = "Dodaj";
+    function add(name) {
+      name = (name || "").trim();
+      if (!name) { inp.focus(); toast("Wpisz nazwę ćwiczenia"); return; }
+      if (sp.ex.some(function (x) { return fold(x) === fold(name); })) { toast(name + " już jest w planie"); inp.value = ""; return; }
+      sp.ex.push(name); save(); renderSplits();
+      var again = $("spadd-" + sp.id); if (again) again.focus();
+    }
+    nameSuggest(inp, sl, function () {
+      return allExerciseNames().filter(function (h) { return !sp.ex.some(function (x) { return fold(x) === fold(h.name); }); });
+    }, add);
+    inp.addEventListener("keydown", function (ev) { if (ev.key === "Enter") { ev.preventDefault(); add(inp.value); } });
+    btn.addEventListener("pointerdown", function (ev) { ev.preventDefault(); });
+    btn.addEventListener("click", function () { add(inp.value); });
+    wrap.append(f, btn);
+    body.append(wrap);
+
+    body.append(armedButton("Usuń plan " + sp.name, "Na pewno? Stuknij jeszcze raz", "ghost danger", function () {
+      state.splits = state.splits.filter(function (x) { return x !== sp; });
+      save(); renderSplits(); toast("Usunięto plan " + sp.name);
+    }));
+    return body;
+  }
+
+  // In the calendar day: put a whole plan into the workout, then only sets are left to fill in
+  function splitPicker(w) {
+    var wrap = document.createElement("div"); wrap.className = "splitpick";
+    if (!state.splits.length) {
+      var p = document.createElement("p"); p.className = "sub"; p.style.margin = "0";
+      p.append("Masz stałe plany treningowe? ");
+      var go = document.createElement("button"); go.type = "button"; go.className = "linkbtn"; go.textContent = "Dodaj je w zakładce SPLIT";
+      go.addEventListener("click", function () { showTSub("split"); window.scrollTo(0, 0); });
+      p.append(go, ", a wstawisz je tu jednym stuknięciem.");
+      wrap.append(p);
+      return wrap;
+    }
+    var lab = document.createElement("div"); lab.className = "sub";
+    lab.textContent = w ? "Wstaw ćwiczenia z planu:" : "Albo zacznij od planu:";
+    var chips = document.createElement("div"); chips.className = "chips";
+    state.splits.forEach(function (sp) {
+      var b = document.createElement("button"); b.type = "button"; b.className = "chip";
+      b.textContent = sp.name + " · " + exWord(sp.ex.length);
+      b.disabled = !sp.ex.length;
+      b.addEventListener("click", function () {
+        var wk = w || (state.workouts[selDay] = { intensity: 2, kcal: 0, min: 0, ex: [] });
+        var have = {}, n = 0;
+        wk.ex.forEach(function (x) { have[fold(x.name)] = 1; });
+        sp.ex.forEach(function (name) {
+          if (have[fold(name)]) return;
+          wk.ex.push({ id: uid(), name: name, sets: [] }); have[fold(name)] = 1; n++;
+        });
+        wk.split = sp.name;
+        save(); renderCalendar(); renderWorkoutDay();
+        toast(n ? "Wstawiono " + sp.name + ": " + exWord(n) : "Wszystkie ćwiczenia z planu już są");
+      });
+      chips.append(b);
+    });
+    wrap.append(lab, chips);
+    return wrap;
+  }
 
   fillGoals();
   var startView = "makro";
