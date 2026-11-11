@@ -279,6 +279,13 @@ details.how p { font-size: .85rem; color: var(--muted); margin: 8px 0 0; max-wid
 .ing .hint { min-height: 0; }
 .ing .hint:empty { display: none; }
 .entry { flex-wrap: wrap; }
+.ing-mode { display: grid; grid-template-columns: minmax(0, 1fr) 6.5em; gap: 8px; align-items: end; }
+.ing-mode .seg button { padding: 9px 4px; }
+.ing-mode.solo { grid-template-columns: minmax(0, 1fr); }
+.ing-cap { font-size: .75rem; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: .05em; margin: 0; }
+.portion { background: var(--surface); border-radius: 10px; padding: 8px 10px; display: flex; flex-direction: column; gap: 2px; font-size: .88rem; }
+.portion strong { font-family: var(--font-display); }
+.portion.wait { color: var(--muted); }
 .ing-toggle { border: 0; background: none; color: var(--accent); font-size: .82rem; font-weight: 700; padding: 6px 0 0; text-align: left; }
 .ing-list { flex-basis: 100%; list-style: none; margin: 0 0 4px 4px; padding: 2px 0 2px 12px; border-left: 2px solid var(--line); display: flex; flex-direction: column; gap: 8px; }
 .ing-list .iname { font-weight: 700; font-size: .9rem; display: flex; justify-content: space-between; gap: 8px; }
@@ -829,7 +836,8 @@ details.how > :not(summary) { margin-top: 10px; }
       var li = document.createElement("li"); li.className = "entry";
       var main = document.createElement("div"); main.className = "main"; main.title = "Stuknij, żeby edytować";
       main.addEventListener("click", function () { startEdit(e.id); });
-      var nm = document.createElement("div"); nm.className = "name"; nm.textContent = e.name || "Bez nazwy";
+      var nm = document.createElement("div"); nm.className = "name";
+      nm.textContent = (e.name || "Bez nazwy") + (e.items && e.items.length === 1 && e.items[0].g ? " · " + gText(e.items[0].g) : "");
       main.append(nm, metaLine(e, false));
       var k = document.createElement("span"); k.className = "k num"; k.textContent = Math.round(val(e, "kcal")) + " kcal";
       var del = document.createElement("button"); del.className = "del"; del.type = "button";
@@ -858,7 +866,7 @@ details.how > :not(summary) { margin-top: 10px; }
           e.items.forEach(function (it) {
             var ili = document.createElement("li");
             var nm2 = document.createElement("div"); nm2.className = "iname";
-            var t1 = document.createElement("strong"); t1.textContent = it.name;
+            var t1 = document.createElement("strong"); t1.textContent = it.name + (it.g ? " · " + gText(it.g) : "");
             var t2 = document.createElement("span"); t2.className = "num"; t2.textContent = Math.round(val(it, "kcal")) + " kcal";
             nm2.append(t1, t2);
             ili.append(nm2, metaLine(it, false));
@@ -890,14 +898,22 @@ details.how > :not(summary) { margin-top: 10px; }
   // ---------- Meal form: meal name on top, its ingredients below, the meal is the sum of all of them ----------
   var formItems = [];
   var openMeals = {};
-  function blankItem() { return { id: uid(), name: "", kcal: "", p: "", f: "", c: "", s: "", fib: "", salt: "" }; }
-  function itemKcal(it) { return num(it.kcal) || kcalFromMacros(num(it.p), num(it.f), num(it.c)); }
+  // An ingredient can be typed per portion, or per 100 g (as on the label) plus how many grams were eaten
+  var MODE_KEY = "dziennik-makro-tryb-skladnika";
+  var lastMode100 = true;
+  try { if (localStorage.getItem(MODE_KEY) === "porcja") lastMode100 = false; } catch (e) {}
+  function blankItem() { return { id: uid(), name: "", kcal: "", p: "", f: "", c: "", s: "", fib: "", salt: "", m100: lastMode100, g: "" }; }
+  function factor(it) { return it.m100 ? num(it.g) / 100 : 1; }
+  function eff(it, k) { return num(it[k]) * factor(it); }
+  function baseKcal(it) { return num(it.kcal) || kcalFromMacros(num(it.p), num(it.f), num(it.c)); }
+  function itemKcal(it) { return baseKcal(it) * factor(it); }
+  function gText(g) { return String(r1(g)).replace(".", ",") + " g"; }
   function sumItems(items) {
     var t = { kcal: 0 };
     NUTRIENTS.forEach(function (n) { t[n.key] = 0; });
     items.forEach(function (it) {
       t.kcal += itemKcal(it);
-      NUTRIENTS.forEach(function (n) { t[n.key] += num(it[n.key]); });
+      NUTRIENTS.forEach(function (n) { t[n.key] += eff(it, n.key); });
     });
     t.kcal = Math.round(t.kcal);
     NUTRIENTS.forEach(function (n) { t[n.key] = r1(t[n.key]); });
@@ -947,7 +963,12 @@ details.how > :not(summary) { margin-top: 10px; }
         var li = document.createElement("li");
         var b = document.createElement("button"); b.type = "button";
         var nm = document.createElement("div"); nm.className = "sname"; nm.textContent = e.name;
-        b.append(nm, metaLine(e, true));
+        if (e.per100) {
+          var pm = metaLine(e.per100, true);
+          pm.prepend("na 100 g: ");
+          if (e.g) pm.append("· ostatnio " + gText(e.g));
+          b.append(nm, pm);
+        } else b.append(nm, metaLine(e, true));
         b.addEventListener("pointerdown", function (ev) { ev.preventDefault(); });
         b.addEventListener("click", function () { hide(); onPick(e); });
         li.append(b); list.append(li);
@@ -987,10 +1008,9 @@ details.how > :not(summary) { margin-top: 10px; }
         var all = pastIngredients().filter(function (x) { return !have[fold(x.name)]; });
         return { head: q ? "Używałeś już wcześniej" : "Ostatnio używane składniki", hits: matchHits(all, q) };
       }, function (src) {
-        it.name = src.name;
-        it.kcal = val(src, "kcal") || "";
-        NUTRIENTS.forEach(function (n) { it[n.key] = val(src, n.key) || ""; });
+        loadItem(it, src);
         renderIngs(); updateSum();
+        if (it.m100) { var gi = $("ig-" + it.id); if (gi) { gi.focus(); gi.select(); } }
       });
       top.append(nr, f);
       if (formItems.length > 1) {
@@ -999,6 +1019,44 @@ details.how > :not(summary) { margin-top: 10px; }
         }));
       }
 
+      var mode = document.createElement("div"); mode.className = "ing-mode" + (it.m100 ? "" : " solo");
+      var seg = document.createElement("div"); seg.className = "seg two"; seg.setAttribute("role", "group"); seg.setAttribute("aria-label", "Jak wpisujesz wartości");
+      [[false, "Na porcję"], [true, "Na 100 g"]].forEach(function (o) {
+        var b = document.createElement("button"); b.type = "button"; b.textContent = o[1];
+        b.setAttribute("aria-pressed", String(it.m100 === o[0]));
+        b.addEventListener("click", function () {
+          if (it.m100 === o[0]) return;
+          it.m100 = o[0]; lastMode100 = o[0];
+          try { localStorage.setItem(MODE_KEY, o[0] ? "100g" : "porcja"); } catch (e) {}
+          renderIngs(); updateSum();
+          if (o[0]) { var gi = $("ig-" + it.id); if (gi) gi.focus(); }
+        });
+        seg.append(b);
+      });
+      mode.append(seg);
+      var portion = null;
+      if (it.m100) {
+        var gf = document.createElement("div"); gf.className = "field";
+        var gl = document.createElement("label"); gl.htmlFor = "ig-" + it.id; gl.textContent = "Zjadłem (g)";
+        var gi = document.createElement("input"); gi.id = "ig-" + it.id; gi.type = "number"; gi.inputMode = "decimal"; gi.min = "0"; gi.step = "any";
+        gi.placeholder = "np. 150"; gi.value = it.g === 0 ? "" : it.g;
+        gi.addEventListener("input", function () { it.g = gi.value; updateSum(); showPortion(); });
+        gf.append(gl, gi); mode.append(gf);
+        portion = document.createElement("div"); portion.className = "portion"; portion.setAttribute("aria-live", "polite");
+      }
+      function showPortion() {
+        if (!portion) return;
+        portion.innerHTML = "";
+        var has = baseKcal(it) || NUTRIENTS.some(function (n) { return num(it[n.key]); });
+        portion.classList.toggle("wait", !(num(it.g) && has));
+        if (!num(it.g)) { portion.textContent = has ? "Wpisz, ile gramów zjadłeś, a policzę resztę." : "Przepisz wartości z etykiety (na 100 g) i wpisz gramy."; return; }
+        if (!has) { portion.textContent = "Przepisz wartości z etykiety (na 100 g)."; return; }
+        var x = { kcal: Math.round(itemKcal(it)) };
+        NUTRIENTS.forEach(function (n) { x[n.key] = r1(eff(it, n.key)); });
+        var t = document.createElement("strong"); t.textContent = "W " + gText(num(it.g)) + ": " + x.kcal + " kcal";
+        portion.append(t, metaLine(x, false));
+      }
+      var cap = document.createElement("p"); cap.className = "ing-cap"; cap.textContent = it.m100 ? "Wartości na 100 g (z etykiety)" : "Wartości w tej porcji";
       var g1 = document.createElement("div"); g1.className = "grid4";
       var g2 = document.createElement("div"); g2.className = "grid3";
       var hint = document.createElement("div"); hint.className = "hint num";
@@ -1022,13 +1080,14 @@ details.how > :not(summary) { margin-top: 10px; }
         var i = document.createElement("input");
         i.id = "iv-" + it.id + "-" + n.key; i.type = "number"; i.inputMode = "decimal"; i.min = "0"; i.step = "any";
         i.placeholder = "0"; i.value = it[n.key] === 0 ? "" : it[n.key];
-        i.addEventListener("input", function () { it[n.key] = i.value; updateSum(); ingHint(); });
+        i.addEventListener("input", function () { it[n.key] = i.value; updateSum(); ingHint(); showPortion(); });
         fld.append(l, i);
         (n.row === 2 ? g2 : g1).append(fld);
         if (n.key === "kcal") kIn = i;
       });
-      ingHint();
-      li.append(top, g1, g2, hint);
+      ingHint(); showPortion();
+      li.append(top, mode, cap, g1, g2, hint);
+      if (portion) li.append(portion);
       ol.append(li);
     });
     if (focusId) { var fi = $("in-" + focusId); if (fi) fi.focus(); }
@@ -1051,14 +1110,22 @@ details.how > :not(summary) { margin-top: 10px; }
   function fillFrom(e) {
     fName.value = e.name || "";
     var src = e.items && e.items.length ? e.items : [Object.assign({}, e, { name: "" })];
-    formItems = src.map(function (it) {
-      var x = blankItem();
-      x.name = it.name || "";
-      x.kcal = val(it, "kcal") || "";
-      NUTRIENTS.forEach(function (n) { x[n.key] = val(it, n.key) || ""; });
-      return x;
-    });
+    formItems = src.map(function (it) { var x = blankItem(); loadItem(x, it); return x; });
     renderIngs(); updateSum();
+  }
+
+  // Copy a saved ingredient into a form item; per-100 g ingredients come back with their label values and last grams
+  function loadItem(x, src) {
+    x.name = src.name || "";
+    if (src.per100) {
+      x.m100 = true; x.g = src.g || "";
+      x.kcal = val(src.per100, "kcal") || "";
+      NUTRIENTS.forEach(function (n) { x[n.key] = val(src.per100, n.key) || ""; });
+    } else {
+      x.m100 = false; x.g = "";
+      x.kcal = val(src, "kcal") || "";
+      NUTRIENTS.forEach(function (n) { x[n.key] = val(src, n.key) || ""; });
+    }
   }
 
   function clearForm() { fName.value = ""; formItems = [blankItem()]; renderIngs(); updateSum(); }
@@ -1088,16 +1155,27 @@ details.how > :not(summary) { margin-top: 10px; }
     var used = formItems.filter(function (it) {
       return it.name.trim() || itemKcal(it) || NUTRIENTS.some(function (n) { return num(it[n.key]); });
     });
+    var noG = used.find(function (it) { return it.m100 && !num(it.g); });
+    if (noG) {
+      toast("Wpisz, ile gramów: " + (noG.name.trim() || "składnik " + (formItems.indexOf(noG) + 1)));
+      var gi = $("ig-" + noG.id); if (gi) gi.focus();
+      return;
+    }
     var t = sumItems(used);
     var named = used.filter(function (it) { return it.name.trim(); });
     var name = fName.value.trim() || named.map(function (it) { return it.name.trim(); }).join(", ");
     if (!t.kcal && !name) { toast("Wpisz nazwę i kalorie albo makro"); fName.focus(); return; }
     var entry = { id: editingId || uid(), name: name || "Posiłek", kcal: t.kcal };
     NUTRIENTS.forEach(function (n) { entry[n.key] = t[n.key]; });
-    if (used.length > 1 || named.length) {
+    if (used.length > 1 || named.length || used.some(function (it) { return it.m100; })) {
       entry.items = used.map(function (it) {
         var x = { name: it.name.trim() || "Składnik", kcal: Math.round(itemKcal(it)) };
-        NUTRIENTS.forEach(function (n) { x[n.key] = r1(num(it[n.key])); });
+        NUTRIENTS.forEach(function (n) { x[n.key] = r1(eff(it, n.key)); });
+        if (it.m100) {
+          x.g = r1(num(it.g));
+          x.per100 = { kcal: Math.round(baseKcal(it)) };
+          NUTRIENTS.forEach(function (n) { x.per100[n.key] = r1(num(it[n.key])); });
+        }
         return x;
       });
     }
